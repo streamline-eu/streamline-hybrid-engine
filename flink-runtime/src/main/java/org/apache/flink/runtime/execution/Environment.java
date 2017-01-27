@@ -214,5 +214,6 @@ public interface Environment {
 
 	InputGate[] getAllInputGates();
 
+	int getInputGatesCount();
 	TaskEventDispatcher getTaskEventDispatcher();
 }

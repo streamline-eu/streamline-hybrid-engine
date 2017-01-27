@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import eu.streamline.flink.annotation.Streamline;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.util.SideInput;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -47,6 +49,9 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.utils.BroadcastedSideInput;
+import org.apache.flink.streaming.api.datastream.utils.ForwardedSideInput;
+import org.apache.flink.streaming.api.datastream.utils.KeyedSideInput;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -922,6 +927,39 @@ public class DataStream<T> {
 		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
 				.setParallelism(inputParallelism);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Side Input
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Adds a side input to the current data steam
+	 * @param sideInput the side input holder
+	 * @param <R> the inner type of the data stream
+	 * @return the current data stream that owns the side input
+	 */
+	@Streamline
+	@PublicEvolving
+	@SuppressWarnings("unchecked")
+	public <R, KEY, SELF extends DataStream<T>> SELF withSideInput(SideInput<R> sideInput) {
+
+		if (sideInput instanceof BroadcastedSideInput) {
+			DataStream<R> oth = ((BroadcastedSideInput<R>) sideInput).stream();
+			transformation.registerSideInput(sideInput.id(), oth.broadcast().getTransformation());
+		} else if (sideInput instanceof ForwardedSideInput) {
+			DataStream<R> oth = ((ForwardedSideInput<R>) sideInput).stream();
+			transformation.registerSideInput(sideInput.id(), oth.forward().getTransformation());
+		} else if (sideInput instanceof KeyedSideInput) {
+			KeyedSideInput<R> keyedSideInput = (KeyedSideInput<R>) sideInput;
+			DataStream<R> oth = keyedSideInput.stream();
+			transformation.registerSideInput(sideInput.id(), oth.keyBy(keyedSideInput.field()).getTransformation());
+		} else {
+			throw new UnsupportedOperationException();
+		}
+
+		return (SELF) this;
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Data sinks

@@ -264,6 +264,11 @@ public class StreamMockEnvironment implements Environment {
 	public TaskEventDispatcher getTaskEventDispatcher() {
 		return taskEventDispatcher;
 	}
+	
+	@Override
+	public int getInputGatesCount() {
+		return inputs.size();
+	}
 
 	@Override
 	public JobVertexID getJobVertexId() {

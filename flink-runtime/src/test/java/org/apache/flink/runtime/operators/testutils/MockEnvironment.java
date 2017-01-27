@@ -358,6 +358,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	public TaskEventDispatcher getTaskEventDispatcher() {
 		return taskEventDispatcher;
 	}
+	
+	@Override
+	public int getInputGatesCount() {
+		return inputs.size();
+	}
 
 	@Override
 	public JobVertexID getJobVertexId() {

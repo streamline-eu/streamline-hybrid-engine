@@ -226,4 +226,10 @@ public class DummyEnvironment implements Environment {
 	public void setTaskStateManager(TaskStateManager taskStateManager) {
 		this.taskStateManager = taskStateManager;
 	}
+
+	@Override
+	public int getInputGatesCount() {
+		return 0;
+	}
+
 }

@@ -30,6 +30,8 @@ import org.apache.flink.util.Disposable;
 
 import java.io.Serializable;
 
+import java.util.Iterator;
+import java.util.UUID;
 /**
  * Basic interface for stream operators. Implementers would implement one of
  * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} or
@@ -126,5 +128,13 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 
 	MetricGroup getMetricGroup();
 
+	// ------------------------------------------------------------------------
+	//  side input handling
+	// ------------------------------------------------------------------------
 	OperatorID getOperatorID();
+	void processSideInputElement(UUID id, StreamRecord<?> record) throws Exception;
+
+	void bufferMainElement(StreamRecord<?> record) throws Exception;
+
+	Iterator<StreamRecord<?>> getBufferedElements() throws Exception;
 }
