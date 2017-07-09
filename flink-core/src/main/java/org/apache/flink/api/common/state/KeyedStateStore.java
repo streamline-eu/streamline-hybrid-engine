@@ -239,4 +239,44 @@ public interface KeyedStateStore {
 	 */
 	@PublicEvolving
 	<UK, UV> MapState<UK,UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+
+	/**
+	 * Gets a handle to the system's key/value sorted map state. This state is similar to the state
+	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+	 * is composed of sorted user-defined key-value pairs
+	 *
+	 * <p>This state is only accessible if the function is executed on a KeyedStream.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 *
+	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
+	 *
+	 *     private SortedMapState<MyType, Long> state;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getSortedMapState(
+	 *                 new SortedMapStateDescriptor<>("sum", MyType.class, Long.class));
+	 *     }
+	 *
+	 *     public Tuple2<MyType, Long> map(MyType value) {
+	 *         return new Tuple2<>(value, state.get(value));
+	 *     }
+	 * });
+	 *
+	 * }</pre>
+	 *
+	 * @param stateProperties The descriptor defining the properties of the stats.
+	 *
+	 * @param <UK> The type of the user keys stored in the state.
+	 * @param <UV> The type of the user values stored in the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part of a KeyedStream).
+	 */
+	@PublicEvolving
+	<UK, UV> SortedMapState<UK,UV> getSortedMapState(SortedMapStateDescriptor<UK, UV> stateProperties);
 }

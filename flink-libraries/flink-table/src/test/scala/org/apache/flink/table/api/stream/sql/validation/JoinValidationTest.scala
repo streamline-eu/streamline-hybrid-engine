@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class JoinValidationTest extends TableTestBase {
 
@@ -31,6 +31,7 @@ class JoinValidationTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
   /** There should exist time conditions **/
+  @Ignore
   @Test(expected = classOf[TableException])
   def testWindowJoinUnExistTimeCondition() = {
     val sql =
@@ -41,6 +42,7 @@ class JoinValidationTest extends TableTestBase {
   }
 
   /** There should exist exactly two time conditions **/
+  @Ignore
   @Test(expected = classOf[TableException])
   def testWindowJoinSingleTimeCondition() = {
     val sql =
@@ -53,6 +55,7 @@ class JoinValidationTest extends TableTestBase {
   }
 
   /** Both time attributes in a join condition must be of the same type **/
+  @Ignore
   @Test(expected = classOf[TableException])
   def testWindowJoinDiffTimeIndicator() = {
     val sql =
@@ -66,6 +69,7 @@ class JoinValidationTest extends TableTestBase {
   }
 
   /** The time conditions should be an And condition **/
+  @Ignore
   @Test(expected = classOf[TableException])
   def testWindowJoinNotCnfCondition() = {
     val sql =
@@ -79,6 +83,7 @@ class JoinValidationTest extends TableTestBase {
   }
 
   /** Validates that no rowtime attribute is in the output schema **/
+  @Ignore
   @Test(expected = classOf[TableException])
   def testNoRowtimeAttributeInResult(): Unit = {
     val sql =

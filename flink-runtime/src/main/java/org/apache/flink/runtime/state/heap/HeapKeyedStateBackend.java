@@ -65,6 +65,9 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.internal.InternalSortedMapState;
+import org.apache.flink.api.common.state.SortedMapStateDescriptor;
+import org.apache.flink.runtime.state.TreeMapSerializer;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -83,6 +86,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -287,6 +291,19 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				new HashMapSerializer<>(stateDesc.getKeySerializer(), stateDesc.getValueSerializer()));
 
 		return new HeapMapState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+	}
+
+	@Override
+	public <N, UK, UV> InternalSortedMapState<N, UK, UV> createSortedMapState(TypeSerializer<N> namespaceSerializer,
+			SortedMapStateDescriptor<UK, UV> stateDesc) throws Exception {
+
+		StateTable<K, N, TreeMap<UK, UV>> stateTable = tryRegisterStateTable(
+				stateDesc.getName(),
+				stateDesc.getType(),
+				namespaceSerializer,
+				new TreeMapSerializer<>(stateDesc.getKeySerializer(), stateDesc.getValueSerializer()));
+
+		return new HeapSortedMapState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
 	@Override

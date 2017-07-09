@@ -68,7 +68,7 @@ abstract class ExpressionTestBase {
     context._2.getFrameworkConfig,
     context._2.getPlanner,
     context._2.getTypeFactory)
-  private val logicalOptProgram = Programs.ofRules(FlinkRuleSets.LOGICAL_OPT_RULES)
+  private val logicalOptProgram = Programs.ofRules(FlinkRuleSets.DATASET_LOGICAL_OPT_RULES)
   private val dataSetOptProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
   private def hepPlanner = {

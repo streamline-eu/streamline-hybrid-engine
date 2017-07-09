@@ -19,7 +19,9 @@
 package org.apache.flink.table.api
 
 import _root_.java.io.Serializable
+
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.table.expressions.TableSymbols
 
 class QueryConfig private[table] extends Serializable {}
 
@@ -47,6 +49,11 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * State will be cleared and removed if it was not updated for the defined period of time.
     */
   private var maxIdleStateRetentionTime: Long = Long.MinValue
+
+  /**
+    * Determines when to evaluate a result.
+    */
+  private var trigger: Trigger.Value = Trigger.STREAM_TRIGGER
 
   /**
     * Specifies the time interval for how long idle state, i.e., state which was not updated, will
@@ -92,6 +99,14 @@ class StreamQueryConfig private[table] extends QueryConfig {
     this
   }
 
+  /**
+    * Determines when to evaluate a result.
+    */
+  def withTrigger(triggerType: Trigger.Value): StreamQueryConfig = {
+    trigger = triggerType
+    this
+  }
+
   def getMinIdleStateRetentionTime: Long = {
     minIdleStateRetentionTime
   }
@@ -99,4 +114,17 @@ class StreamQueryConfig private[table] extends QueryConfig {
   def getMaxIdleStateRetentionTime: Long = {
     maxIdleStateRetentionTime
   }
+
+  def getTrigger: Trigger.Value = {
+    trigger
+  }
+}
+
+object Trigger extends TableSymbols {
+
+  type Trigger = TableSymbolValue
+
+  val STREAM_TRIGGER = Value(0)
+  val CONSISTENT_TRIGGER = Value(1)
+
 }

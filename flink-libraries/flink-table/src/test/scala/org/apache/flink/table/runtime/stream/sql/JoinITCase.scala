@@ -31,6 +31,7 @@ import scala.collection.mutable
 class JoinITCase extends StreamingWithStateTestBase {
 
   /** test process time inner join **/
+  @Ignore
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -66,6 +67,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   }
 
   /** test process time inner join with other condition **/
+  @Ignore
   @Test
   def testProcessTimeInnerJoinWithOtherCondition(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment

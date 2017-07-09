@@ -43,24 +43,28 @@ object StreamSQLExample {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val orderA: DataStream[Order] = env.fromCollection(Seq(
-      Order(1L, "beer", 3),
-      Order(1L, "diaper", 4),
-      Order(3L, "rubber", 2)))
+    val orders: DataStream[Order] = env.fromCollection(Seq(
+      Order(1L, 1),
+      Order(1L, 2),
+      Order(3L, 1)))
 
-    val orderB: DataStream[Order] = env.fromCollection(Seq(
-      Order(2L, "pen", 3),
-      Order(2L, "rubber", 3),
-      Order(4L, "beer", 1)))
+    val rates: DataStream[Rate] = env.fromCollection(Seq(
+      Rate(1, 3.226266),
+      Rate(2, 2.17272),
+      Rate(3, 0)))
 
-    // register the DataStreams under the name "OrderA" and "OrderB"
-    tEnv.registerDataStream("OrderA", orderA, 'user, 'product, 'amount)
-    tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
+    // Orders(rowtime, amount, currency)
+    // Rates(rowtime, currency, rate)
+    tEnv.registerDataStream("Orders", orders, 'amount, 'currency, 'proctime.proctime)
+    tEnv.registerDataStream("Rates", rates, 'currency, 'rate, 'proctime.proctime)
 
     // union the two tables
     val result = tEnv.sql(
-      "SELECT * FROM OrderA WHERE amount > 2 UNION ALL " +
-        "SELECT * FROM OrderB WHERE amount < 2")
+      "SELECT Orders.amount * Rates.rate AS totalAmount " +
+        "FROM Orders, Rates " +
+        "WHERE Orders.currency = Rates.currency AND Rates.proctime = (" +
+          "SELECT MAX(r.proctime) FROM Rates AS r WHERE r.currency = Orders.currency AND r.proctime <= Orders.proctime" +
+        ")")
 
     result.toAppendStream[Order].print()
 
@@ -71,6 +75,8 @@ object StreamSQLExample {
   //     USER DATA TYPES
   // *************************************************************************
 
-  case class Order(user: Long, product: String, amount: Int)
+  case class Order(amount: Long, currency: Int)
+
+  case class Rate(currency: Int, rate: Double)
 
 }

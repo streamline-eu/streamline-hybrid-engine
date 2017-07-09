@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -77,6 +76,6 @@ abstract class FlinkTable[T](
     *
     * @return statistics of current table
     */
-  override def getStatistic: Statistic = statistic
+  override def getStatistic: FlinkStatistic = statistic
 
 }

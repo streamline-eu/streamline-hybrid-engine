@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.asScalaStream
+import org.apache.flink.table.plan.stats.TableStats
 
 /**
   * The [[TableEnvironment]] for a Scala [[StreamExecutionEnvironment]].
@@ -82,7 +83,33 @@ class StreamTableEnvironment(
   def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
+    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray, None)
+    scan(name)
+  }
+
+  /**
+    * Converts the given [[DataStream]] into a [[Table]] with specified field names.
+    *
+    * Example:
+    *
+    * {{{
+    *   val stream: DataStream[(String, Long)] = ...
+    *   val tab: Table = tableEnv.fromDataStream(stream, 'a, 'b)
+    * }}}
+    *
+    * @param dataStream The [[DataStream]] to be converted.
+    * @param statistics Statistics about the table.
+    * @param fields The field names of the resulting [[Table]].
+    * @tparam T The type of the [[DataStream]].
+    * @return The converted [[Table]].
+    */
+  def fromDataStream[T](
+      dataStream: DataStream[T],
+      statistics: TableStats,
+      fields: Expression*): Table = {
+
+    val name = createUniqueTableName()
+    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray, Some(statistics))
     scan(name)
   }
 
@@ -124,7 +151,35 @@ class StreamTableEnvironment(
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: Expression*): Unit = {
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
+    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray, None)
+  }
+
+  /**
+    * Registers the given [[DataStream]] as table with specified field names in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * Example:
+    *
+    * {{{
+    *   val set: DataStream[(String, Long)] = ...
+    *   tableEnv.registerDataStream("myTable", set, 'a, 'b)
+    * }}}
+    *
+    * @param name The name under which the [[DataStream]] is registered in the catalog.
+    * @param dataStream The [[DataStream]] to register.
+    * @param statistics Statistics about the table.
+    * @param fields The field names of the registered table.
+    * @tparam T The type of the [[DataStream]] to register.
+    */
+  def registerDataStream[T](
+      name: String,
+      dataStream: DataStream[T],
+      statistics: TableStats,
+      fields: Expression*): Unit = {
+
+    checkValidTableName(name)
+    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray, Some(statistics))
   }
 
   /**

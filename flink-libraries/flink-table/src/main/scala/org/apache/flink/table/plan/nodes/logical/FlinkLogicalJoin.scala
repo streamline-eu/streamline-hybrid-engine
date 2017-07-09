@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.nodes.logical
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical.LogicalJoin
@@ -36,7 +37,8 @@ class FlinkLogicalJoin(
     left: RelNode,
     right: RelNode,
     condition: RexNode,
-    joinType: JoinRelType)
+    joinType: JoinRelType,
+    resultType: RelDataType)
   extends Join(cluster, traitSet, left, right, condition, Set.empty[CorrelationId].asJava, joinType)
   with FlinkLogicalRel {
 
@@ -48,7 +50,7 @@ class FlinkLogicalJoin(
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
 
-    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+    new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType, resultType)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -64,6 +66,8 @@ class FlinkLogicalJoin(
 
     planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
+
+  override def deriveRowType(): RelDataType = resultType
 }
 
 private class FlinkLogicalJoinConverter
@@ -92,7 +96,8 @@ private class FlinkLogicalJoinConverter
       newLeft,
       newRight,
       join.getCondition,
-      join.getJoinType)
+      join.getJoinType,
+      join.getRowType)
   }
 
   private def hasEqualityPredicates(join: LogicalJoin, joinInfo: JoinInfo): Boolean = {

@@ -82,4 +82,13 @@ public interface StateBinder {
 	 * @param <MV> Type of the values in the state
 	 */
 	<MK, MV> MapState<MK, MV> createMapState(MapStateDescriptor<MK, MV> stateDesc) throws Exception;
+
+	/**
+	 * Creates and returns a new {@link SortedMapState}.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <MK> Type of the keys in the state
+	 * @param <MV> Type of the values in the state
+	 */
+	<MK, MV> SortedMapState<MK, MV> createSortedMapState(SortedMapStateDescriptor<MK, MV> stateDesc) throws Exception;
 }

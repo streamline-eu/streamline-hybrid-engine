@@ -37,6 +37,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSourceTable}
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
@@ -94,11 +95,43 @@ abstract class BatchTableEnvironment(
     * @param tableSource The [[TableSource]] to register.
     */
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    registerTableSourceInternal(name, tableSource, None)
+  }
+
+  /**
+    * Registers an external [[BatchTableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    * @param statistic Statistics about the table.
+    */
+  override def registerTableSource(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: TableStats)
+    : Unit = {
+
+    registerTableSourceInternal(name, tableSource, Some(statistic))
+  }
+
+  private def registerTableSourceInternal(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: Option[TableStats])
+    : Unit = {
+
     checkValidTableName(name)
 
     tableSource match {
       case batchTableSource: BatchTableSource[_] =>
-        registerTableInternal(name, new TableSourceTable(batchTableSource))
+        registerTableInternal(
+          name,
+          new TableSourceTable(
+            batchTableSource,
+            statistic.map(FlinkStatistic.of).getOrElse(FlinkStatistic.UNKNOWN)
+          )
+        )
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")
@@ -251,6 +284,11 @@ abstract class BatchTableEnvironment(
     val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
     registerTableInternal(name, dataSetTable)
   }
+
+  /**
+    * Returns the built-in logical optimization rules that are defined by the environment.
+    */
+  protected def getBuiltInLogicalOptRuleSet: RuleSet = FlinkRuleSets.DATASET_LOGICAL_OPT_RULES
 
   /**
     * Returns the built-in normalization rules that are defined by the environment.

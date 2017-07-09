@@ -26,7 +26,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
+import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType, isTimeIndicatorType}
 import org.apache.flink.table.functions.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
@@ -161,13 +161,44 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   }
 
   override def visit(join: LogicalJoin): RelNode = {
-    val left = join.getLeft.accept(this)
-    val right = join.getRight.accept(this)
+    // visit children and update inputs
+    val inputs = join.getInputs.map(_.accept(this))
 
-    LogicalJoin.create(left, right, join.getCondition, join.getVariablesSet, join.getJoinType)
+    // check if left and right side contain rowtime attributes
+    val isValidRowtimeJoin = inputs.forall { node =>
+      node.getRowType.getFieldList.exists {
+        field => isRowtimeIndicatorType(field.getType)
+      }
+    }
 
+    // check if left and right side contain proctime attributes
+    val isValidProctimeJoin = inputs.forall { node =>
+      node.getRowType.getFieldList.exists {
+        field => isProctimeIndicatorType(field.getType)
+      }
+    }
+
+    if (!isValidProctimeJoin && !isValidRowtimeJoin) {
+      throw new ValidationException("Joining of tables in a streaming environment " +
+        "requires both tables to have the same type of time attributes.")
+    }
+
+    // check if input field contains time indicator type
+    // materialize field if no time indicator is present anymore
+    // if input field is already materialized, change to timestamp type
+    val materializer = new RexTimeIndicatorMaterializer(
+      rexBuilder,
+      inputs.flatMap(_.getRowType.getFieldList.map(_.getType)))
+
+    val condition = join.getCondition.accept(materializer)
+
+    LogicalJoin.create(
+      inputs.head,
+      inputs(1),
+      condition,
+      join.getVariablesSet,
+      join.getJoinType)
   }
-
 
   override def visit(correlate: LogicalCorrelate): RelNode = {
     // visit children and update inputs

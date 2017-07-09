@@ -37,6 +37,14 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 	void setCurrentKey(K newKey);
 
 	/**
+	 * Sets the current key that is used for partitioned state.
+	 *
+	 * @param keyGroup The key group  for the new current key.
+	 * @param newKey The new current key and key group.
+	 */
+	void setCurrentKey(int keyGroup, K newKey);
+
+	/**
 	 * Creates or retrieves a keyed state backed by this state backend.
 	 *
 	 * @param namespaceSerializer The serializer used for the namespace type of the state

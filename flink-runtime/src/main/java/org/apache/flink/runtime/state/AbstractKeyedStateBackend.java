@@ -46,6 +46,9 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.internal.InternalSortedMapState;
+import org.apache.flink.api.common.state.SortedMapState;
+import org.apache.flink.api.common.state.SortedMapStateDescriptor;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -226,11 +229,25 @@ public abstract class AbstractKeyedStateBackend<K>
 	 *
 	 * @param <N> The type of the namespace.
 	 * @param <UK> Type of the keys in the state
-	 * @param <UV> Type of the values in the state	 *
+	 * @param <UV> Type of the values in the state
 	 */
 	protected abstract <N, UK, UV> InternalMapState<N, UK, UV> createMapState(
 			TypeSerializer<N> namespaceSerializer,
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception;
+
+	/**
+	 * Creates and returns a new {@link SortedMapState}.
+	 *
+	 * @param namespaceSerializer TypeSerializer for the state namespace.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <UK> Type of the keys in the state
+	 * @param <UV> Type of the values in the state
+	 */
+	protected abstract <N, UK, UV> InternalSortedMapState<N, UK, UV> createSortedMapState(
+			TypeSerializer<N> namespaceSerializer,
+			SortedMapStateDescriptor<UK, UV> stateDesc) throws Exception;
 
 	/**
 	 * @see KeyedStateBackend
@@ -239,6 +256,15 @@ public abstract class AbstractKeyedStateBackend<K>
 	public void setCurrentKey(K newKey) {
 		this.currentKey = newKey;
 		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
+	}
+
+	/**
+	 * @see KeyedStateBackend
+	 */
+	@Override
+	public void setCurrentKey(int keyGroup, K newKey) {
+		this.currentKey = newKey;
+		this.currentKeyGroup = keyGroup;
 	}
 
 	/**
@@ -339,6 +365,11 @@ public abstract class AbstractKeyedStateBackend<K>
 			@Override
 			public <UK, UV> MapState<UK, UV> createMapState(MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createMapState(namespaceSerializer, stateDesc);
+			}
+
+			@Override
+			public <UK, UV> SortedMapState<UK, UV> createSortedMapState(SortedMapStateDescriptor<UK, UV> stateDesc) throws Exception {
+				return AbstractKeyedStateBackend.this.createSortedMapState(namespaceSerializer, stateDesc);
 			}
 
 		});

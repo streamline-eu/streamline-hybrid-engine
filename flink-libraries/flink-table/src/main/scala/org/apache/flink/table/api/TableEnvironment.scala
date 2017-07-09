@@ -56,6 +56,7 @@ import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -217,9 +218,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Returns the built-in logical optimization rules that are defined by the environment.
     */
-  protected def getBuiltInLogicalOptRuleSet: RuleSet = {
-    FlinkRuleSets.LOGICAL_OPT_RULES
-  }
+  protected def getBuiltInLogicalOptRuleSet: RuleSet
 
   /**
     * Returns the built-in physical optimization rules that are defined by the environment.
@@ -276,7 +275,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             s"${t.msg}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
-        throw a.getCause
+        throw a
     }
     output
   }
@@ -412,6 +411,16 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param tableSource The [[TableSource]] to register.
     */
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit
+
+  /**
+    * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    * @param statistics Statistics about the table.
+    */
+  def registerTableSource(name: String, tableSource: TableSource[_], statistics: TableStats): Unit
 
   /**
     * Replaces a registered Table with another Table under the same name.

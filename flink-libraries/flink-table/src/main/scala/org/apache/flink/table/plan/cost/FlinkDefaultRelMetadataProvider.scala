@@ -20,12 +20,14 @@ package org.apache.flink.table.plan.cost
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.metadata.{ChainedRelMetadataProvider, DefaultRelMetadataProvider, RelMetadataProvider}
+import org.apache.flink.table.ttjoin.FlinkRelMdDistinctRowCount
 
 object FlinkDefaultRelMetadataProvider {
 
   val INSTANCE: RelMetadataProvider = ChainedRelMetadataProvider.of(
     ImmutableList.of(
       FlinkRelMdRowCount.SOURCE,
+      FlinkRelMdDistinctRowCount.SOURCE,
       DefaultRelMetadataProvider.INSTANCE
     )
   )

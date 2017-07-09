@@ -23,7 +23,7 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.sql.{DateTimeSqlFunction, ScalarSqlFunctions}
+import org.apache.flink.table.functions.sql.{DateTimeSqlFunction, JoinedTimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
@@ -424,7 +424,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.HOP_END,
     SqlStdOperatorTable.SESSION,
     SqlStdOperatorTable.SESSION_START,
-    SqlStdOperatorTable.SESSION_END
+    SqlStdOperatorTable.SESSION_END,
+    JoinedTimeSqlFunction.INSTANCE
   )
 
   builtInSqlOperators.foreach(register)

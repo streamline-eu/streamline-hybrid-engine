@@ -43,6 +43,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable}
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -107,6 +108,32 @@ abstract class StreamTableEnvironment(
     * @param tableSource The [[TableSource]] to register.
     */
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    registerTableSourceInternal(name, tableSource, None)
+  }
+
+  /**
+    * Registers an external [[StreamTableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    * @param statistic Statistics about the table.
+    */
+  override def registerTableSource(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: TableStats)
+    : Unit = {
+
+    registerTableSourceInternal(name, tableSource, Some(statistic))
+  }
+
+  private def registerTableSourceInternal(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: Option[TableStats])
+    : Unit = {
+
     checkValidTableName(name)
 
     // check if event-time is enabled
@@ -122,7 +149,13 @@ abstract class StreamTableEnvironment(
 
     tableSource match {
       case streamTableSource: StreamTableSource[_] =>
-        registerTableInternal(name, new StreamTableSourceTable(streamTableSource))
+        registerTableInternal(
+          name,
+          new StreamTableSourceTable(
+            streamTableSource,
+            statistic.map(FlinkStatistic.of).getOrElse(FlinkStatistic.UNKNOWN)
+          )
+        )
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
             "StreamTableEnvironment")
@@ -352,12 +385,14 @@ abstract class StreamTableEnvironment(
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @param fields The field expressions to define the field names of the table.
+    * @param statistic The statistics of the table.
     * @tparam T The type of the [[DataStream]].
     */
   protected def registerDataStreamInternal[T](
       name: String,
       dataStream: DataStream[T],
-      fields: Array[Expression])
+      fields: Array[Expression],
+      statistic: Option[TableStats])
     : Unit = {
 
     val streamType = dataStream.getType
@@ -382,7 +417,8 @@ abstract class StreamTableEnvironment(
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
       indexesWithIndicatorFields,
-      namesWithIndicatorFields
+      namesWithIndicatorFields,
+      statistic.map(FlinkStatistic.of).getOrElse(FlinkStatistic.UNKNOWN)
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -561,6 +597,11 @@ abstract class StreamTableEnvironment(
         }
     }
   }
+
+  /**
+    * Returns the built-in logical optimization rules that are defined by the environment.
+    */
+  protected def getBuiltInLogicalOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_LOGICAL_OPT_RULES
 
   /**
     * Returns the built-in normalization rules that are defined by the environment.

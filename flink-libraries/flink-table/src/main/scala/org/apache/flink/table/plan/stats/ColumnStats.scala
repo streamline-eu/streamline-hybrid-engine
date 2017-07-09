@@ -29,26 +29,29 @@ import java.lang.{Double, Long}
   * @param maxLen    max length of column values
   * @param max       max value of column values
   * @param min       min value of column values
+  * @param skewness  flag for skewed column values
   */
 case class ColumnStats(
-    ndv: Long,
-    nullCount: Long,
-    avgLen: Double,
-    maxLen: Integer,
-    max: Number,
-    min: Number) {
+  ndv: Long,
+  nullCount: Long,
+  avgLen: Double,
+  maxLen: Integer,
+  max: Number,
+  min: Number,
+  skewness: Boolean = false) {
 
   override def toString: String = {
     val columnStatsStr = Seq(
+      if (skewness) s"skewed=$skewness" else "",
       if (ndv != null) s"ndv=$ndv" else "",
       if (nullCount != null) s"nullCount=$nullCount" else "",
       if (avgLen != null) s"avgLen=$avgLen" else "",
       if (maxLen != null) s"maxLen=$maxLen" else "",
-      if (max != null) s"max=${max}" else "",
-      if (min != null) s"min=${min}" else ""
+      if (max != null) s"max=$max" else "",
+      if (min != null) s"min=$min" else ""
     ).filter(_.nonEmpty).mkString(", ")
 
-    s"ColumnStats(${columnStatsStr})"
+    s"ColumnStats($columnStatsStr)"
   }
 
 }

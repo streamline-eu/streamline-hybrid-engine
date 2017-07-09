@@ -24,13 +24,14 @@ import org.apache.flink.table.runtime.join.WindowJoinUtil
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class JoinTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c.rowtime, 'proctime.proctime)
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
+  @Ignore
   @Test
   def testProcessingTimeInnerJoinWithOnClause() = {
 
@@ -69,6 +70,7 @@ class JoinTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, expected)
   }
 
+  @Ignore
   @Test
   def testProcessingTimeInnerJoinWithWhereClause() = {
 
