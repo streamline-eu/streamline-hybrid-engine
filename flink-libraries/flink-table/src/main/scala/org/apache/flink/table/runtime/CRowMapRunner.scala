@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory
 /**
   * MapRunner with [[CRow]] input.
   */
-class CRowInputMapRunner[OUT](
+class CRowMapRunner[OUT](
     name: String,
     code: String,
     @transient var returnType: TypeInformation[OUT])
