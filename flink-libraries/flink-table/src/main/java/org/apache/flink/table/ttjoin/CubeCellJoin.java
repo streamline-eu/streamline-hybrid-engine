@@ -1094,7 +1094,6 @@ public final class CubeCellJoin {
 				}
 
 				// add key to buffer for later deletion
-				System.out.println("Deleting: " + Arrays.toString(timedKey.getData()));
 				deletions.add(ByteKey.copy(timedKey.getData()));
 
 				final byte[] timedValue = timedNavigator.value();
