@@ -68,17 +68,8 @@ public final class CubeCellJoin {
 	private final SortedMapState<ByteKey, byte[]>[] timedState; // (timestamp, order id) -> (total order key, value id, insert/delete)
 	private final SortedMapState<ByteKey, Long>[] structureState; // (total order key, value id) -> count
 	private final Navigator<ByteKey, ?>[] joinNavigators; // contains structure state navigators but one delta state navigator
-
-	// current delta state
-	private ValueState<Boolean>[] deltaStateEmpty; // number of stored entries in delta states
-	private SortedMapState<ByteKey, Boolean>[] deltaState; // (total order key, value id, order id) -> insert/delete
-	private ValueState<Boolean> allDeltaStateEmpty; // marks all tables as empty or filled with at least one entry
-	private final ValueState<Boolean> allDeltaStateEmptyBlack;
-	private final ValueState<Boolean>[] deltaStateEmptyBlack;
-	private final SortedMapState<ByteKey, Boolean>[] deltaStateBlack;
-	private final ValueState<Boolean> allDeltaStateEmptyWhite;
-	private final ValueState<Boolean>[] deltaStateEmptyWhite;
-	private final SortedMapState<ByteKey, Boolean>[] deltaStateWhite;
+	private final ValueState<Boolean>[] deltaStateEmpty; // marks tables as empty or filled with at least one entry
+	private final SortedMapState<ByteKey, byte[]>[] deltaState; // (total order key, order id) -> (value id, insert/delete)
 
 	// config
 	private final boolean timedBuffering; // records are buffered according to their timestamp
@@ -95,7 +86,7 @@ public final class CubeCellJoin {
 	private boolean isInsert; // flag for insert/delete
 	private final byte[] serializedProgress; // normalized timestamp for timedBuffer with empty order id
 	private final boolean[][] tableNullMasks; // per table, null mask per table
-	private final byte[][] tableOverallKey; // per table, with gaps for value ids of variable-length fields
+	private final byte[][] tableOverallKey; // per table, with gaps for value ids of variable-length fields and value id/order id
 	private final byte[][] variableLengthSingleKeys;
 	private final ByteStore variableLengthStore; // variable-length buffer
 	private byte[] values; // for overall values
@@ -329,53 +320,25 @@ public final class CubeCellJoin {
 		if (timedBuffering) {
 			timedState = (SortedMapState<ByteKey, byte[]>[]) new SortedMapState[tableCount];
 			for (int tableIdx = 0; tableIdx < tableCount; ++tableIdx) {
-				timedState[tableIdx] = context.getSortedMapState(new SortedMapStateDescriptor<>("t" + tableIdx, new FixedByteKeySerializer(16), BytePrimitiveArraySerializer.INSTANCE));
+				timedState[tableIdx] = context.getSortedMapState(
+					new SortedMapStateDescriptor<>("t" + tableIdx, new FixedByteKeySerializer(16), BytePrimitiveArraySerializer.INSTANCE));
 			}
 		} else {
 			timedState = null;
 		}
 
-		if (batchBuffering) {
-			// prepare black and white states
-			allDeltaStateEmptyBlack = context.getState(new ValueStateDescriptor<>("deb", BooleanSerializer.INSTANCE));
-			allDeltaStateEmptyWhite = context.getState(new ValueStateDescriptor<>("dew", BooleanSerializer.INSTANCE));
-			deltaStateEmptyBlack = (ValueState<Boolean>[]) new ValueState[tableCount];
-			deltaStateBlack = (SortedMapState<ByteKey, Boolean>[]) new SortedMapState[tableCount];
-			deltaStateEmptyWhite = (ValueState<Boolean>[]) new ValueState[tableCount];
-			deltaStateWhite = (SortedMapState<ByteKey, Boolean>[]) new SortedMapState[tableCount];
-
-			// set black as initial
-			allDeltaStateEmpty = allDeltaStateEmptyBlack;
-			deltaStateEmpty = deltaStateEmptyBlack;
-			deltaState = deltaStateBlack;
-		} else {
-			// set avoiding states
-			allDeltaStateEmpty = new AvoidingValueState<>();
-			deltaStateEmpty = (ValueState<Boolean>[]) new ValueState[tableCount];
-			deltaState = (SortedMapState<ByteKey, Boolean>[]) new SortedMapState[tableCount];
-
-			// set black and white states to null
-			allDeltaStateEmptyBlack = null;
-			allDeltaStateEmptyWhite = null;
-			deltaStateEmptyBlack = null;
-			deltaStateBlack = null;
-			deltaStateEmptyWhite = null;
-			deltaStateWhite = null;
-		}
+		// create delta state
+		deltaStateEmpty = (ValueState<Boolean>[]) new ValueState[tableCount];
+		deltaState = (SortedMapState<ByteKey, byte[]>[]) new SortedMapState[tableCount];
 
 		for (int tableIdx = 0; tableIdx < tableCount; ++tableIdx) {
-
 			// we need to store multiple records in state for later batching
 			if (batchBuffering) {
-				// prepare black and white states
-				deltaStateEmptyBlack[tableIdx] = context.getState(new ValueStateDescriptor<>("dcb" + tableIdx, BooleanSerializer.INSTANCE));
-				deltaStateBlack[tableIdx] = context.getSortedMapState(
-					new SortedMapStateDescriptor<>("db" + tableIdx, new FixedByteKeySerializer(tableTotalOrderKeyLengths[tableIdx] + 16), BooleanSerializer.INSTANCE));
-				deltaStateEmptyWhite[tableIdx] = context.getState(new ValueStateDescriptor<>("dcw" + tableIdx, BooleanSerializer.INSTANCE));
-				deltaStateWhite[tableIdx] = context.getSortedMapState(
-					new SortedMapStateDescriptor<>("dw" + tableIdx, new FixedByteKeySerializer(tableTotalOrderKeyLengths[tableIdx] + 16), BooleanSerializer.INSTANCE));
+				deltaStateEmpty[tableIdx] = context.getState(new ValueStateDescriptor<>("de" + tableIdx, BooleanSerializer.INSTANCE));
+				deltaState[tableIdx] = context.getSortedMapState(
+					new SortedMapStateDescriptor<>("d" + tableIdx, new FixedByteKeySerializer(tableOverallKeyLengths[tableIdx]), BytePrimitiveArraySerializer.INSTANCE));
 			}
-			// only watermark batching or no batching is happening
+			// no batching is happening
 			else {
 				// set avoiding states
 				deltaStateEmpty[tableIdx] = new AvoidingValueState<>();
@@ -498,35 +461,6 @@ public final class CubeCellJoin {
 		}
 	}
 
-	public void switchDelta(final boolean toEmpty) throws Exception {
-		// only toggle if delta is empty
-		final Boolean emptyBlack = allDeltaStateEmptyBlack.value();
-		// we want the empty delta
-		if (toEmpty) {
-			if (emptyBlack == null || emptyBlack) {
-				allDeltaStateEmpty = allDeltaStateEmptyBlack;
-				deltaStateEmpty = deltaStateEmptyBlack;
-				deltaState = deltaStateBlack;
-			} else {
-				allDeltaStateEmpty = allDeltaStateEmptyWhite;
-				deltaStateEmpty = deltaStateEmptyWhite;
-				deltaState = deltaStateWhite;
-			}
-		}
-		// we want the non-empty delta
-		else {
-			if (emptyBlack != null && !emptyBlack) {
-				allDeltaStateEmpty = allDeltaStateEmptyBlack;
-				deltaStateEmpty = deltaStateEmptyBlack;
-				deltaState = deltaStateBlack;
-			} else {
-				allDeltaStateEmpty = allDeltaStateEmptyWhite;
-				deltaStateEmpty = deltaStateEmptyWhite;
-				deltaState = deltaStateWhite;
-			}
-		}
-	}
-
 	private void addTimedEntry(final long orderId) throws Exception {
 
 		// cache variables
@@ -552,18 +486,23 @@ public final class CubeCellJoin {
 		// cache variables
 		final byte[] overallKey = tableOverallKey[tableIdx];
 		final int overallKeyLength = overallKey.length;
+		final int totalOrderKeyLength = tableTotalOrderKeyLengths[tableIdx];
 
 		// create key for delta state
-		final byte[] deltaStateKey = new byte[overallKeyLength + 16]; // (total order key, value id, order id)
-		System.arraycopy(overallKey, 0, deltaStateKey, 0, overallKeyLength); // total order key
-		ByteKey.serializeLong(deltaStateKey, overallKeyLength, orderId); // order id
+		final byte[] deltaStateKey = new byte[overallKeyLength]; // (total order key, order id)
+		System.arraycopy(overallKey, 0, deltaStateKey, 0, totalOrderKeyLength); // total order key
+		ByteKey.serializeLong(deltaStateKey, totalOrderKeyLength, orderId); // order id
+
+		// create value for delta state
+		final byte[] deltaStateValue = new byte[9]; // (value id, insert/delete)
+		System.arraycopy(overallKey, totalOrderKeyLength, deltaStateValue, 0, 8); // value id
+		ByteKey.serializeBoolean(deltaStateValue, 8, isInsert); // insert/delete
 
 		// add entry
-		deltaState[tableIdx].put(new ByteKey(deltaStateKey), isInsert); // no reuse, because new key
+		deltaState[tableIdx].put(new ByteKey(deltaStateKey), deltaStateValue); // no reuse, because new key
 
 		// mark delta
 		deltaStateEmpty[tableIdx].update(false);
-		allDeltaStateEmpty.update(false);
 	}
 
 	// adds an arbitrary value to a dictionary and maintains a reference counter
@@ -612,12 +551,6 @@ public final class CubeCellJoin {
 
 	public final void join() throws Exception {
 
-		// all delta states are empty, nothing to do
-		final Boolean allEmpty = allDeltaStateEmpty.value();
-		if (allEmpty == null || allEmpty) {
-			return;
-		}
-
 		// initialize navigators
 		for (int tableIdx = 0; tableIdx < structureState.length; ++tableIdx) {
 			// initiate navigators
@@ -649,9 +582,6 @@ public final class CubeCellJoin {
 				applyDelta(i);
 			}
 		}
-
-		// mark all delta states as empty
-		allDeltaStateEmpty.update(true);
 	}
 
 	private void joinDelta() throws Exception {
@@ -944,28 +874,32 @@ public final class CubeCellJoin {
 	private void applyDelta(final int deltaTable) throws Exception {
 
 		// cache variables
-		final SortedMapState<ByteKey, Boolean> delta = deltaState[deltaTable];
-		final Navigator<ByteKey, Boolean> deltaNavigator = delta.navigator();
+		final SortedMapState<ByteKey, byte[]> delta = deltaState[deltaTable];
+		final Navigator<ByteKey, byte[]> deltaNavigator = delta.navigator();
 		final SortedMapState<ByteKey, Long> structure = structureState[deltaTable];
 		final int overallKeyLength = tableOverallKeyLengths[deltaTable];
+		final int totalOrderKeyLength = tableTotalOrderKeyLengths[deltaTable];
 
 		deltaNavigator.seekToFirst();
 
 		ByteKey deltaKey;
 		while ((deltaKey = deltaNavigator.key()) != null) {
-			// from: (total order key, value id, order id) -> insert/delete
+			// from: (total order key, order id) -> (value id, insert/delete)
 			// to: (total order key, value id) -> count
+
+			final byte[] deltaValue = deltaNavigator.value();
 
 			// check if overall key exists
 			final byte[] overallKey = new byte[overallKeyLength];
-			System.arraycopy(deltaKey.getData(), 0, overallKey, 0, overallKeyLength);
+			System.arraycopy(deltaKey.getData(), 0, overallKey, 0, totalOrderKeyLength);
+			System.arraycopy(deltaValue, 0, overallKey, totalOrderKeyLength, 8);
 
 			final ByteKey seekKey = lookupKey;
 			seekKey.replace(overallKey);
 			final Long count = structure.get(seekKey);
 
 			// apply insert/delete
-			final boolean isInsert = deltaNavigator.value();
+			final boolean isInsert = ByteKey.deserializeBoolean(deltaValue, 8);
 
 			// insert
 			if (isInsert) {
@@ -1065,9 +999,10 @@ public final class CubeCellJoin {
 
 			// cache variables
 			final int overallKeyLength = tableOverallKeyLengths[tableIdx];
+			final int totalOrderKeyLength = tableTotalOrderKeyLengths[tableIdx];
 			final SortedMapState<ByteKey, byte[]> timed = timedState[tableIdx];
 			final Navigator<ByteKey, byte[]> timedNavigator = timedState[tableIdx].navigator();
-			final SortedMapState<ByteKey, Boolean> delta = deltaState[tableIdx];
+			final SortedMapState<ByteKey, byte[]> delta = deltaState[tableIdx];
 			final List<byte[]> deletions = timedStateDeletions;
 
 			// iterate through timed state and move records to delta
@@ -1087,7 +1022,6 @@ public final class CubeCellJoin {
 
 					// mark as non-empty once
 					deltaStateEmpty[tableIdx].update(false);
-					allDeltaStateEmpty.update(false);
 
 					// clear buffer once
 					deletions.clear();
@@ -1096,18 +1030,20 @@ public final class CubeCellJoin {
 				// add key to buffer for later deletion
 				deletions.add(ByteKey.copy(timedKey.getData()));
 
+				final byte[] timedKeyData = timedKey.getData();
 				final byte[] timedValue = timedNavigator.value();
 
 				// from: (timestamp, order id) -> (total order key, value id, insert/delete)
-				// to: (total order key, value id, order id) -> insert/delete
+				// to: (total order key, order id) -> (value id, insert/delete)
 
 				// create delta key
-				final byte[] deltaKey = new byte[overallKeyLength + 8];
-				System.arraycopy(timedValue, 0, deltaKey, 0, overallKeyLength); // total order key, value id
-				System.arraycopy(timedKey.getData(), 8, deltaKey, overallKeyLength, 8); // order id
+				final byte[] deltaKey = new byte[overallKeyLength];
+				System.arraycopy(timedValue, 0, deltaKey, 0, totalOrderKeyLength); // total order key
+				System.arraycopy(timedKeyData, 8, deltaKey, totalOrderKeyLength, 8); // order id
 
 				// create delta value
-				final boolean deltaValue = ByteKey.deserializeBoolean(timedValue, overallKeyLength);
+				final byte[] deltaValue = new byte[9];
+				System.arraycopy(timedValue, totalOrderKeyLength, deltaValue, 0, 9); // value id, insert/delete
 
 				// add delta entry
 				// no reuse, because timedKey object is reused by serializer in RocksDB and is not serialized with AvoidingState

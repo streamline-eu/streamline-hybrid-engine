@@ -20,9 +20,7 @@ package org.apache.flink.table.ttjoin
 
 import java.util
 
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos
 import org.apache.flink.streaming.api.operators._
-import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
@@ -131,17 +129,5 @@ class MultiJoinPreprocessorOperator(
 
     // emit
     output.collect(streamRecord)
-  }
-
-  override def processWatermark(mark: Watermark): Unit = {
-    // only emit watermarks if we have an event-time join
-    if (rowtimeIndex >= 0) {
-      // set metadata
-      joinRecord.typeFlag = JoinRecord.WATERMARK
-      streamRecord.setTimestamp(mark.getTimestamp)
-
-      // emit
-      output.collect(streamRecord)
-    }
   }
 }

@@ -56,6 +56,11 @@ class StreamQueryConfig private[table] extends QueryConfig {
   private var trigger: Trigger.Value = Trigger.STREAM_TRIGGER
 
   /**
+    * Trigger period.
+    */
+  private var triggerPeriod: Long = 0
+
+  /**
     * Specifies the time interval for how long idle state, i.e., state which was not updated, will
     * be retained. When state was not updated for the specified interval of time, it will be cleared
     * and removed.
@@ -103,7 +108,20 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * Determines when to evaluate a result.
     */
   def withTrigger(triggerType: Trigger.Value): StreamQueryConfig = {
+    withTrigger(triggerType, 0)
+  }
+
+  /**
+    * Determines when to evaluate a result.
+    */
+  def withTrigger(triggerType: Trigger.Value, period: Long): StreamQueryConfig = {
+    if (triggerType == Trigger.PERIODIC_TRIGGER && period <= 0L) {
+      throw ValidationException("Periodic trigger requires an interval.")
+    } else if (triggerType != Trigger.PERIODIC_TRIGGER && period != 0L) {
+      throw ValidationException("A non-periodic trigger does not need to define an interval.")
+    }
     trigger = triggerType
+    triggerPeriod = period
     this
   }
 
@@ -118,6 +136,10 @@ class StreamQueryConfig private[table] extends QueryConfig {
   def getTrigger: Trigger.Value = {
     trigger
   }
+
+  def getTriggerPeriod: Long = {
+    triggerPeriod
+  }
 }
 
 object Trigger extends TableSymbols {
@@ -125,6 +147,7 @@ object Trigger extends TableSymbols {
   type Trigger = TableSymbolValue
 
   val STREAM_TRIGGER = Value(0)
-  val CONSISTENT_TRIGGER = Value(1)
+  val WATERMARK_TRIGGER = Value(1)
+  val PERIODIC_TRIGGER = Value(2)
 
 }

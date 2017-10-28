@@ -38,5 +38,4 @@ class JoinRecord(
 object JoinRecord {
   val INSERT: Byte = 0
   val DELETE: Byte = 1
-  val WATERMARK: Byte = 2
 }

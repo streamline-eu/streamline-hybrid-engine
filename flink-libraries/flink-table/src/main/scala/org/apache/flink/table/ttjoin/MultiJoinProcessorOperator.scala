@@ -20,16 +20,19 @@ package org.apache.flink.table.ttjoin
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.runtime.state.{AbstractKeyedStateBackend, StateSnapshotContext}
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback
+import org.apache.flink.table.api.Trigger
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.util.Collector
 
 class MultiJoinProcessorOperator(
     val isEventTime: Boolean,
-    val isConsistentBatching: Boolean,
+    val trigger: Trigger.Value,
+    val triggerPeriod: Long,
     val groupCellsMap: Array[Array[Int]],
     val tableCount: Int,
     val tableFieldTypes: Array[Array[TypeInformation[_]]],
@@ -55,10 +58,7 @@ class MultiJoinProcessorOperator(
   var cellJoin: CubeCellJoin = _
 
   @transient
-  var watermarks: Array[Long] = _
-
-  @transient
-  var combinedWatermark: Long = _
+  var watermark: Long = _
 
   override def open(): Unit = {
     keyedStateBackend = getKeyedStateBackend[Int]().asInstanceOf[AbstractKeyedStateBackend[Int]]
@@ -99,21 +99,31 @@ class MultiJoinProcessorOperator(
       outRow,
       tableCount,
       tableFieldSerializers,
-      isEventTime,
-      isConsistentBatching,
+      isEventTime && trigger == Trigger.PERIODIC_TRIGGER,
+      trigger != Trigger.STREAM_TRIGGER,
       totalKeyOrder,
       tableOrderKeyKeySetMap,
       outputMap
     )
 
-    watermarks = new Array[Long](tableCount)
-    var i = 0
-    while (i < tableCount) {
-      watermarks(i) = Long.MinValue
-      i += 1
-    }
+    watermark = Long.MinValue
 
-    combinedWatermark = Long.MinValue
+    // trigger joining in fixed interval
+    if (trigger == Trigger.PERIODIC_TRIGGER) {
+      getProcessingTimeService.scheduleAtFixedRate(new ProcessingTimeCallback {
+        override def onProcessingTime(timestamp: Long): Unit = {
+          var cell = startKeyGroup
+          while (cell <= endKeyGroup) {
+            // set key context
+            keyedStateBackend.setCurrentKey(cell, cell)
+            // join
+            cellJoin.join()
+            cell += 1
+          }
+          output.emitWatermark(new Watermark(watermark))
+        }
+      }, 0, triggerPeriod)
+    }
   }
 
   override def setKeyContextElement1(record: StreamRecord[_]): Unit = {
@@ -126,130 +136,74 @@ class MultiJoinProcessorOperator(
     val timestamp = element.getTimestamp
     val tableIdx = record.tableIdx
 
-    // process watermark for each cell this operator is responsible for
-    if (record.typeFlag == JoinRecord.WATERMARK) {
-
-      // determine combined watermark
-      watermarks(tableIdx) = timestamp
-      // find minimum of all watermarks
-      var newMin = Long.MaxValue
-      var i = 0
-      while (i < tableCount) {
-        newMin = Math.min(watermarks(i), newMin)
-        i += 1
-      }
-      // new watermark
-      if (newMin > combinedWatermark) {
-        combinedWatermark = newMin
-
-        // pre-process watermark for all cells
-        cellJoin.insertWatermark(combinedWatermark)
-
-        var cell = startKeyGroup
-        while (cell <= endKeyGroup) {
-          // set key context
-          keyedStateBackend.setCurrentKey(cell, cell)
-          // make progress for table
-          cellJoin.storeProgress()
-          // join
-          if (!isConsistentBatching) {
-            cellJoin.join()
-          }
-          cell += 1
-        }
-
-        // emit watermark
-        if (!isConsistentBatching) {
-          output.emitWatermark(new Watermark(combinedWatermark))
-        }
-      }
+    // drop late events
+    if (isEventTime && timestamp <= watermark) {
+      throw new IllegalStateException("Join does not support late events.")
     }
-    // process record
-    else {
 
-      // drop late events
-      if (isEventTime && timestamp <= watermarks(tableIdx)) {
-        return
-      }
+    val cells = groupCellsMap(record.cubeGroupId)
+    val isInsert = record.typeFlag == JoinRecord.INSERT
+    val serializedRow = record.serializedRow
 
-      val cells = groupCellsMap(record.cubeGroupId)
-      val isInsert = record.typeFlag == JoinRecord.INSERT
-      val serializedRow = record.serializedRow
+    // pre-process record for all cells
+    cellJoin.insertRecord(tableIdx, isInsert, timestamp, serializedRow)
 
-      // pre-process record for all cells
-      cellJoin.insertRecord(tableIdx, isInsert, timestamp, serializedRow)
-
-      // process record in each cell
-      var i = 0
-      while (i < cells.length) {
-        val cell = cells(i)
-        // check if operator is responsible for this cell
-        if (cell >= startKeyGroup && cell <= endKeyGroup) {
-          // set key context
-          keyedStateBackend.setCurrentKey(cell, cell)
-          // insert/delete record
-          cellJoin.storeRecord()
-          // join
-          if (!isConsistentBatching) {
-            cellJoin.join()
-          }
+    // process record in each cell
+    var i = 0
+    while (i < cells.length) {
+      val cell = cells(i)
+      // check if operator is responsible for this cell
+      if (cell >= startKeyGroup && cell <= endKeyGroup) {
+        // set key context
+        keyedStateBackend.setCurrentKey(cell, cell)
+        // insert/delete record
+        cellJoin.storeRecord()
+        // join immediately
+        if (trigger == Trigger.STREAM_TRIGGER) {
+          cellJoin.join()
         }
-
-        i += 1
       }
+
+      i += 1
     }
   }
 
   override def processWatermark(mark: Watermark): Unit = {
-    throw new UnsupportedOperationException("This operator should not receive watermarks.")
-  }
+    watermark = Math.max(watermark, mark.getTimestamp)
 
-  override def snapshotState(context: StateSnapshotContext): Unit = {
-    // toggle delta state for consistent batching
-    if (isConsistentBatching) {
+    // watermark trigger
+    // joins current delta and emits watermark
+    if (trigger == Trigger.WATERMARK_TRIGGER) {
       var cell = startKeyGroup
       while (cell <= endKeyGroup) {
-
         // set key context
         keyedStateBackend.setCurrentKey(cell, cell)
+        // join
+        cellJoin.join()
+        cell += 1
+      }
+      output.emitWatermark(mark)
+    }
+    // periodic trigger
+    // moves records from time store to delta store
+    // set watermark for emitting later!
+    else if (trigger == Trigger.PERIODIC_TRIGGER) {
+      // pre-process watermark for all cells
+      cellJoin.insertWatermark(mark.getTimestamp)
 
-        // switch to empty delta
-        cellJoin.switchDelta(true)
-
+      var cell = startKeyGroup
+      while (cell <= endKeyGroup) {
+        // set key context
+        keyedStateBackend.setCurrentKey(cell, cell)
+        // make progress for tables
+        cellJoin.storeProgress()
         cell += 1
       }
     }
-
-    // continue with snapshot
-    super.snapshotState(context)
-  }
-
-  override def notifyOfCompletedCheckpoint(checkpointId: Long): Unit = {
-    // skip if batching is not enabled
-    if (!isConsistentBatching) {
-      return
+    // stream trigger
+    // emits only watermark
+    else {
+      output.emitWatermark(mark)
     }
-
-    // join
-    var cell = startKeyGroup
-    while (cell <= endKeyGroup) {
-
-      // set key context
-      keyedStateBackend.setCurrentKey(cell, cell)
-
-      // switch to full delta
-      cellJoin.switchDelta(false)
-
-      // join
-      cellJoin.join()
-
-      cell += 1
-    }
-
-    // emit watermark
-    output.emitWatermark(new Watermark(combinedWatermark))
-
-    // continue with notification
-    super.notifyOfCompletedCheckpoint(checkpointId)
   }
 }

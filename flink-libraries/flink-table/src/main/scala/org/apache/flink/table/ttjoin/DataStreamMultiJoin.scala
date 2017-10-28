@@ -431,7 +431,8 @@ class DataStreamMultiJoin(
           CRowTypeInfo(schema.typeInfo),
           new MultiJoinProcessorOperator(
             isEventTime = isRowtime,
-            queryConfig.getTrigger == Trigger.CONSISTENT_TRIGGER,
+            queryConfig.getTrigger,
+            queryConfig.getTriggerPeriod,
             groupCellsMap,
             namedInputs.length,
             inputFieldTypesMap,
