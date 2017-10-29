@@ -39,10 +39,10 @@ class MultiJoinITCase extends StreamingWithStateTestBase {
   @Test
   def testSimpleProctimeJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setMaxParallelism(2)
-    env.setParallelism(1)
-    //env.enableCheckpointing(5000)
-    //env.setStateBackend(getStateBackend)
+    env.setMaxParallelism(4)
+    env.setParallelism(2)
+    env.enableCheckpointing(5000)
+    env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
 

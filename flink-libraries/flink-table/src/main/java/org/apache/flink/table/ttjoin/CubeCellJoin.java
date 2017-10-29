@@ -61,10 +61,9 @@ public final class CubeCellJoin {
 	private static final byte ZERO = (byte) 0;
 
 	// state
-	private final ValueState<Long> dictionaryCounter; // for variable-length single keys and overall values
+	private final ValueState<Long> idCounter; // for variable-length single keys and overall values
 	private final MapState<Long, byte[]> dictionaryKeyState; // value id -> value
 	private final MapState<ByteKey, byte[]> dictionaryValueState; // value -> (value id, count)
-	private final ValueState<Long> orderCounter; // for unique order in case of equal timestamps
 	private final SortedMapState<ByteKey, byte[]>[] timedState; // (timestamp, order id) -> (total order key, value id, insert/delete)
 	private final SortedMapState<ByteKey, Long>[] structureState; // (total order key, value id) -> count
 	private final Navigator<ByteKey, ?>[] joinNavigators; // contains structure state navigators but one delta state navigator
@@ -74,6 +73,7 @@ public final class CubeCellJoin {
 	// config
 	private final boolean timedBuffering; // records are buffered according to their timestamp
 	private final boolean batchBuffering; // records are buffered for batching joins
+	private final boolean quickPath; // no buffering at all
 	private final TypeSerializer<?>[][] tableFieldSerializers; // field serializers per table
 
 	// buffers
@@ -114,7 +114,6 @@ public final class CubeCellJoin {
 	private final int[][] recordVariableLengthOrderKeyPositions; // per table, position of keys in record with variable-length
 	private final int[][] recordVariableLengthOrderKeyOffsets; // per table, offset of order keys (in record with variable-length) in total order key
 	private final int[] tableTotalOrderKeyLengths; // per table, length of all single keys (variable-length keys = 8 bytes)
-	private final int[] tableOverallKeyLengths; // per table, length of all single keys (variable-length keys = 8 bytes) + value id
 	private final int[][] tableSingleKeyOffsets; // per table, offsets to the start of single keys in an overall key for table R
 	private final int[] singleKeyLengths; // length of a single key in a total order key (variable-length keys = 8 bytes)
 	private final int[][] outputMap; // per table, maps order key to output row
@@ -136,6 +135,7 @@ public final class CubeCellJoin {
 		this.tableFieldSerializers = tableFieldSerializers;
 		this.timedBuffering = timedBuffering;
 		this.batchBuffering = batchBuffering;
+		this.quickPath = !timedBuffering && !batchBuffering;
 
 		// pre-calculated schema information
 
@@ -197,9 +197,9 @@ public final class CubeCellJoin {
 		}
 
 		// calculate overall key lengths
-		this.tableOverallKeyLengths = new int[tableCount];
+		final int[] tableOverallKeyLengths = new int[tableCount];
 		for (int tableIdx = 0; tableIdx < tableCount; ++tableIdx) {
-			this.tableOverallKeyLengths[tableIdx] = this.tableTotalOrderKeyLengths[tableIdx] + 8;
+			tableOverallKeyLengths[tableIdx] = this.tableTotalOrderKeyLengths[tableIdx] + 8;
 		}
 
 		// calculate offsets of single keys in total order key
@@ -269,7 +269,7 @@ public final class CubeCellJoin {
 		// allocate prefix key per table
 		this.tableCurrentPrefixKey = new byte[tableCount][];
 		for (int tableIdx = 0; tableIdx < tableCount; ++tableIdx) {
-			this.tableCurrentPrefixKey[tableIdx] = new byte[this.tableOverallKeyLengths[tableIdx]];
+			this.tableCurrentPrefixKey[tableIdx] = new byte[tableOverallKeyLengths[tableIdx]];
 		}
 
 		this.currentPrefixKeySorter = new byte[tableCount][];
@@ -289,7 +289,7 @@ public final class CubeCellJoin {
 
 		this.tableOverallKey = new byte[tableCount][];
 		for (int tableIdx = 0; tableIdx < tableCount; ++tableIdx) {
-			this.tableOverallKey[tableIdx] = new byte[this.tableOverallKeyLengths[tableIdx]];
+			this.tableOverallKey[tableIdx] = new byte[tableOverallKeyLengths[tableIdx]];
 		}
 
 		this.variableLengthStore = new ByteStore(ByteStore.DEFAULT_CAPACITY);
@@ -313,10 +313,9 @@ public final class CubeCellJoin {
 		this.timedStateDeletions = new ArrayList<>(32);
 
 		// create state
-		dictionaryCounter = context.getState(new ValueStateDescriptor<>("dc", LongSerializer.INSTANCE));
+		idCounter = context.getState(new ValueStateDescriptor<>("ic", LongSerializer.INSTANCE));
 		dictionaryKeyState = context.getMapState(new MapStateDescriptor<>("dk", LongSerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE));
 		dictionaryValueState = context.getMapState(new MapStateDescriptor<>("dv", VariableByteKeySerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE));
-		orderCounter = context.getState(new ValueStateDescriptor<>("oc", LongSerializer.INSTANCE));
 		if (timedBuffering) {
 			timedState = (SortedMapState<ByteKey, byte[]>[]) new SortedMapState[tableCount];
 			for (int tableIdx = 0; tableIdx < tableCount; ++tableIdx) {
@@ -432,8 +431,7 @@ public final class CubeCellJoin {
 			final int offset = variableLengthSingleKeyOffsets[keyIndex];
 			final byte[] singleKey = variableLengthSingleKeys[pos];
 			// the dictionary is used to speedup the join, for non-existing variable-length keys
-			final boolean impactsJoin = !timedBuffering && !batchBuffering;
-			final long valueId = addDictionaryEntry(singleKey, impactsJoin); // modifies lookupKey!
+			final long valueId = addDictionaryEntry(singleKey, quickPath); // modifies lookupKey!
 			ByteKey.serializeLong(overallKey, offset, valueId);
 		}
 
@@ -441,23 +439,29 @@ public final class CubeCellJoin {
 		final long valueId = addDictionaryEntry(values, false); // modifies lookupKey!
 		ByteKey.serializeLong(overallKey, overallKey.length - 8, valueId); // value id
 
-		// create unique order id
-		final Long nextOrderIdCounter = orderCounter.value();
-		final long nextOrderId;
-		if (nextOrderIdCounter == null) {
-			nextOrderId = 0L;
+		// quick path
+		// just add delta entry
+		if (quickPath) {
+			addDeltaEntry(0L);
 		} else {
-			nextOrderId = nextOrderIdCounter;
-		}
-		orderCounter.update(nextOrderId + 1);
+			// create unique order id
+			final Long nextOrderIdCounter = idCounter.value();
+			final long nextOrderId;
+			if (nextOrderIdCounter == null) {
+				nextOrderId = 0L;
+			} else {
+				nextOrderId = nextOrderIdCounter;
+			}
+			idCounter.update(nextOrderId + 1);
 
-		// add timed entry
-		if (timedBuffering) {
-			addTimedEntry(nextOrderId);
-		}
-		// add delta entry
-		else {
-			addDeltaEntry(nextOrderId);
+			// add timed entry
+			if (timedBuffering) {
+				addTimedEntry(nextOrderId);
+			}
+			// add delta entry
+			else {
+				addDeltaEntry(nextOrderId);
+			}
 		}
 	}
 
@@ -485,13 +489,19 @@ public final class CubeCellJoin {
 
 		// cache variables
 		final byte[] overallKey = tableOverallKey[tableIdx];
-		final int overallKeyLength = overallKey.length;
 		final int totalOrderKeyLength = tableTotalOrderKeyLengths[tableIdx];
 
 		// create key for delta state
-		final byte[] deltaStateKey = new byte[overallKeyLength]; // (total order key, order id)
+		final byte[] deltaStateKey = new byte[totalOrderKeyLength + 8]; // (total order key, order id)
 		System.arraycopy(overallKey, 0, deltaStateKey, 0, totalOrderKeyLength); // total order key
-		ByteKey.serializeLong(deltaStateKey, totalOrderKeyLength, orderId); // order id
+
+		// if not quick path
+		if (!quickPath) {
+			// use the order id
+			ByteKey.serializeLong(deltaStateKey, totalOrderKeyLength, orderId); // order id
+			// mark delta
+			deltaStateEmpty[tableIdx].update(false);
+		}
 
 		// create value for delta state
 		final byte[] deltaStateValue = new byte[9]; // (value id, insert/delete)
@@ -500,9 +510,6 @@ public final class CubeCellJoin {
 
 		// add entry
 		deltaState[tableIdx].put(new ByteKey(deltaStateKey), deltaStateValue); // no reuse, because new key
-
-		// mark delta
-		deltaStateEmpty[tableIdx].update(false);
 	}
 
 	// adds an arbitrary value to a dictionary and maintains a reference counter
@@ -519,14 +526,14 @@ public final class CubeCellJoin {
 				isSingleRecordEnd = true;
 			}
 
-			final Long nextValueIdCounter = dictionaryCounter.value();
+			final Long nextValueIdCounter = idCounter.value();
 			final long nextValueId;
 			if (nextValueIdCounter == null) {
 				nextValueId = 0L;
 			} else {
 				nextValueId = nextValueIdCounter;
 			}
-			dictionaryCounter.update(nextValueId + 1);
+			idCounter.update(nextValueId + 1);
 
 			dictionaryKeyState.put(nextValueId, value); // reuse, because either RocksDB copy or existing object will be used
 
@@ -557,29 +564,43 @@ public final class CubeCellJoin {
 			joinNavigators[tableIdx] = structureState[tableIdx].navigator();
 		}
 
+		// quick path
+		// only join the filled delta
+		if (quickPath) {
+			currentDeltaIndex = tableIdx;
+			joinNavigators[tableIdx] = deltaState[tableIdx].navigator();
+
+			// join
+			if (!isSingleRecordEnd) {
+				joinDelta();
+			}
+
+			// merge
+			applyDelta();
+		}
 		// perform a delta join with each non-empty buffer
-		for (int i = 0; i < deltaState.length; ++i) {
+		else {
+			for (int i = 0; i < deltaState.length; ++i) {
 
-			final Boolean empty = deltaStateEmpty[i].value();
+				final Boolean empty = deltaStateEmpty[i].value();
 
-			if (empty != null && !empty) {
+				if (empty != null && !empty) {
 
-				// restore previous navigator
-				if (i > 0) {
-					joinNavigators[i - 1] = structureState[i - 1].navigator();
-				}
+					// restore previous navigator
+					if (i > 0) {
+						joinNavigators[i - 1] = structureState[i - 1].navigator();
+					}
 
-				// set current delta index
-				currentDeltaIndex = i;
-				joinNavigators[i] = deltaState[i].navigator();
+					// set current delta index
+					currentDeltaIndex = i;
+					joinNavigators[i] = deltaState[i].navigator();
 
-				// join
-				if (!isSingleRecordEnd) {
+					// join
 					joinDelta();
-				}
 
-				// merge
-				applyDelta(i);
+					// merge
+					applyDelta();
+				}
 			}
 		}
 	}
@@ -871,13 +892,13 @@ public final class CubeCellJoin {
 		return nextMatch();
 	}
 
-	private void applyDelta(final int deltaTable) throws Exception {
+	private void applyDelta() throws Exception {
 
 		// cache variables
+		final int deltaTable = currentDeltaIndex;
 		final SortedMapState<ByteKey, byte[]> delta = deltaState[deltaTable];
 		final Navigator<ByteKey, byte[]> deltaNavigator = delta.navigator();
 		final SortedMapState<ByteKey, Long> structure = structureState[deltaTable];
-		final int overallKeyLength = tableOverallKeyLengths[deltaTable];
 		final int totalOrderKeyLength = tableTotalOrderKeyLengths[deltaTable];
 
 		deltaNavigator.seekToFirst();
@@ -890,7 +911,7 @@ public final class CubeCellJoin {
 			final byte[] deltaValue = deltaNavigator.value();
 
 			// check if overall key exists
-			final byte[] overallKey = new byte[overallKeyLength];
+			final byte[] overallKey = new byte[totalOrderKeyLength + 8];
 			System.arraycopy(deltaKey.getData(), 0, overallKey, 0, totalOrderKeyLength);
 			System.arraycopy(deltaValue, 0, overallKey, totalOrderKeyLength, 8);
 
@@ -933,8 +954,10 @@ public final class CubeCellJoin {
 			deltaNavigator.next();
 		}
 
-		// update delta counter
-		deltaStateEmpty[deltaTable].update(true);
+		if (!quickPath) {
+			// update delta counter
+			deltaStateEmpty[deltaTable].update(true);
+		}
 
 		// update delta state
 		delta.clear();
@@ -998,7 +1021,6 @@ public final class CubeCellJoin {
 		for (int tableIdx = 0; tableIdx < structureState.length; ++tableIdx) {
 
 			// cache variables
-			final int overallKeyLength = tableOverallKeyLengths[tableIdx];
 			final int totalOrderKeyLength = tableTotalOrderKeyLengths[tableIdx];
 			final SortedMapState<ByteKey, byte[]> timed = timedState[tableIdx];
 			final Navigator<ByteKey, byte[]> timedNavigator = timedState[tableIdx].navigator();
@@ -1037,7 +1059,7 @@ public final class CubeCellJoin {
 				// to: (total order key, order id) -> (value id, insert/delete)
 
 				// create delta key
-				final byte[] deltaKey = new byte[overallKeyLength];
+				final byte[] deltaKey = new byte[totalOrderKeyLength + 8];
 				System.arraycopy(timedValue, 0, deltaKey, 0, totalOrderKeyLength); // total order key
 				System.arraycopy(timedKeyData, 8, deltaKey, totalOrderKeyLength, 8); // order id
 
@@ -1131,13 +1153,24 @@ public final class CubeCellJoin {
 	}
 
 	private void emitRecord() throws Exception {
+
+		final int deltaIndex = currentDeltaIndex;
+		final byte[] deltaStateKey = (byte[]) joinNavigators[deltaIndex].value();
+		final long deltaValueId = ByteKey.deserializeLong(deltaStateKey, 0);
+		final boolean isInsert = ByteKey.deserializeBoolean(deltaStateKey, 8);
+
 		// set insert/delete
-		final boolean isInsert = (Boolean) joinNavigators[currentDeltaIndex].value();
 		changeRow.change_$eq(isInsert);
 
 		for (int table = 0; table < joinNavigators.length; ++table) {
 			final Navigator<ByteKey, ?> navigator = joinNavigators[table];
-			final long valueId = ByteKey.deserializeLong(navigator.key().getData(), tableTotalOrderKeyLengths[table]);
+
+			final long valueId;
+			if (table == deltaIndex) {
+				valueId = deltaValueId;
+			} else {
+				valueId = ByteKey.deserializeLong(navigator.key().getData(), tableTotalOrderKeyLengths[table]);
+			}
 			final byte[] value = dictionaryKeyState.get(valueId);
 			final TypeSerializer<?>[] fieldSerializers = tableFieldSerializers[table];
 

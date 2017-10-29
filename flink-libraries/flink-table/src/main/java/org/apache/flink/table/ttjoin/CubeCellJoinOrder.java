@@ -125,7 +125,7 @@ public class CubeCellJoinOrder {
 	}
 
 	private double calculateDistinctCount(final int[] combination, final int table, final int maxKeySetPos) {
-		double distinctCount = 1;
+ 		double distinctCount = 1;
 		for (int keySetPos = 0; keySetPos <= maxKeySetPos; ++keySetPos) {
 			final int keySet = combination[keySetPos];
 			// get all involved tables for this key set
@@ -140,6 +140,10 @@ public class CubeCellJoinOrder {
 					distinctCount *= singleKeyDistinctCountMap[table][curSingleKey];
 				}
 			}
+		}
+
+		if (maxKeySetPos == 0) {
+			return distinctCount;
 		}
 		return Math.min(cardinalities[table] / 2, distinctCount);
 	}

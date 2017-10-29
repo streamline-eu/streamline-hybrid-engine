@@ -69,27 +69,26 @@ class JoinRecordSerializer(val rowSerializer: TypeSerializer[Row])
     target.write(record.typeFlag)
 
     // write payload
-    if (record.typeFlag != JoinRecord.WATERMARK) {
-      // instantiate buffer
-      if (reusableJoinRecord == null) {
-        reusableJoinRecord = new JoinRecord(-1, -1, -1, new ByteStore(ByteStore.DEFAULT_CAPACITY))
-      }
 
-      // write cube group id
-      target.writeInt(record.cubeGroupId)
-
-      val reusableSerializedRow = reusableJoinRecord.serializedRow
-
-      // reset buffer
-      reusableSerializedRow.reset()
-
-      // fill buffer
-      rowSerializer.serialize(record.row, reusableSerializedRow)
-
-      // write buffer
-      target.writeInt(reusableSerializedRow.getContent)
-      target.write(reusableSerializedRow, reusableSerializedRow.getContent)
+    // instantiate buffer
+    if (reusableJoinRecord == null) {
+      reusableJoinRecord = new JoinRecord(-1, -1, -1, new ByteStore(ByteStore.DEFAULT_CAPACITY))
     }
+
+    // write cube group id
+    target.writeInt(record.cubeGroupId)
+
+    val reusableSerializedRow = reusableJoinRecord.serializedRow
+
+    // reset buffer
+    reusableSerializedRow.reset()
+
+    // fill buffer
+    rowSerializer.serialize(record.row, reusableSerializedRow)
+
+    // write buffer
+    target.writeInt(reusableSerializedRow.getContent)
+    target.write(reusableSerializedRow, reusableSerializedRow.getContent)
   }
 
   override def deserialize(source: DataInputView): JoinRecord = {
@@ -106,20 +105,18 @@ class JoinRecordSerializer(val rowSerializer: TypeSerializer[Row])
     reuse.typeFlag = source.readByte()
 
     // read payload
-    if (reuse.typeFlag != JoinRecord.WATERMARK) {
 
-      // read cube group id
-      reuse.cubeGroupId = source.readInt()
+    // read cube group id
+    reuse.cubeGroupId = source.readInt()
 
-      val reusableSerializedRow = reuse.serializedRow
+    val reusableSerializedRow = reuse.serializedRow
 
-      // reset buffer
-      reusableSerializedRow.reset()
+    // reset buffer
+    reusableSerializedRow.reset()
 
-      // read into buffer
-      val size = source.readInt()
-      reusableSerializedRow.write(source, size)
-    }
+    // read into buffer
+    val size = source.readInt()
+    reusableSerializedRow.write(source, size)
 
     reuse
   }
@@ -131,19 +128,18 @@ class JoinRecordSerializer(val rowSerializer: TypeSerializer[Row])
     reuse.typeFlag = source.readByte()
 
     // read payload
-    if (reuse.typeFlag != JoinRecord.WATERMARK) {
-      // read cube group id
-      reuse.cubeGroupId = source.readInt()
 
-      val reusableSerializedRow = reuse.serializedRow
+    // read cube group id
+    reuse.cubeGroupId = source.readInt()
 
-      // reset buffer
-      reusableSerializedRow.reset()
+    val reusableSerializedRow = reuse.serializedRow
 
-      // read into buffer
-      val size = source.readInt()
-      reusableSerializedRow.write(source, size)
-    }
+    // reset buffer
+    reusableSerializedRow.reset()
+
+    // read into buffer
+    val size = source.readInt()
+    reusableSerializedRow.write(source, size)
 
     reuse
   }
@@ -156,14 +152,13 @@ class JoinRecordSerializer(val rowSerializer: TypeSerializer[Row])
     target.write(typeFlag)
 
     // copy payload
-    if (typeFlag != JoinRecord.WATERMARK) {
-      // copy cube group id
-      target.write(source, 4)
 
-      // copy buffers
-      val size = source.readInt()
-      target.write(source, size)
-    }
+    // copy cube group id
+    target.write(source, 4)
+
+    // copy buffers
+    val size = source.readInt()
+    target.write(source, size)
   }
 
   override def canEqual(obj: scala.Any): Boolean = obj.isInstanceOf[JoinRecordSerializer]
