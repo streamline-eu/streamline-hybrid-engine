@@ -116,9 +116,9 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 		byte[] rawValueBytes = serializeUserValue(userValue);
 
-		navigator.reset();
-
 		backend.db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
+
+		navigator.reset();
 	}
 
 	@Override
@@ -127,20 +127,20 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 			return;
 		}
 
-		navigator.reset();
-
 		for (Map.Entry<UK, UV> entry : map.entrySet()) {
 			put(entry.getKey(), entry.getValue());
 		}
+
+		navigator.reset();
 	}
 
 	@Override
 	public void remove(UK userKey) throws IOException, RocksDBException {
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 
-		navigator.reset();
-
 		backend.db.delete(columnFamily, writeOptions, rawKeyBytes);
+
+		navigator.reset();
 	}
 
 	@Override
@@ -577,7 +577,6 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 		public void reset() {
 			if (iterator != null) {
 				iterator.close();
-				iterator = null;
 			}
 
 			currentKey = null;
@@ -589,7 +588,7 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 			cachedUserValue = null;
 		}
 
-		public void ensureIterator() {
+		private void ensureIterator() {
 			if (iterator == null) {
 				iterator = backend.db.newIterator(columnFamily);
 			}
@@ -598,7 +597,6 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 		@Override
 		public void seekToFirst() throws Exception {
 			ensureIterator();
-
 			iterator.seek(keyPrefixBytes);
 
 			updateCurrentKey(0);
@@ -606,8 +604,6 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 
 		@Override
 		public void seek(UK userKey) throws Exception {
-			ensureIterator();
-
 			keySerializationStream.reset();
 			keySerializationDataOutputView.write(keyPrefixBytes);
 			userKeySerializer.serialize(userKey, keySerializationDataOutputView);
@@ -620,6 +616,7 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 				seekKey = cachedSeekKey;
 			}
 
+			ensureIterator();
 			iterator.seek(seekKey);
 
 			updateCurrentKey(0);
@@ -627,10 +624,9 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 
 		@Override
 		public void next() throws Exception {
+			ensureIterator();
 			// e.g. pos = -4 and prevContext = -3 -> next() is ok
 			if (currentKey != null || pos == prevContext - 1) {
-				ensureIterator();
-
 				iterator.next();
 
 				updateCurrentKey(1);
@@ -639,10 +635,9 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 
 		@Override
 		public void prev() throws Exception {
+			ensureIterator();
 			// e.g. pos = 4 and nextContext = 3 -> prev() is ok
 			if (currentKey != null || pos == nextContext + 1) {
-				ensureIterator();
-
 				if (!iterator.isValid()) {
 					iterator.seekToLast();
 				} else {
@@ -668,13 +663,19 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 		public UV value() throws Exception {
 			if (currentKey != null) {
 				if (cachedUserValue == null) {
-					ensureIterator();
-
 					cachedUserValue = deserializeUserValue(iterator.value());
 				}
 				return cachedUserValue;
 			}
 			return null;
+		}
+
+		@Override
+		public void close() throws Exception {
+			if (iterator != null) {
+				iterator.close();
+				iterator = null;
+			}
 		}
 
 		private void updateCurrentKey(final int direction) {
@@ -685,6 +686,10 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 				if (newPos >= prevContext && newPos <= nextContext) {
 					pos = newPos;
 					currentKey = iterator.key();
+
+					// clear cache
+					cachedUserKey = null;
+					cachedUserValue = null;
 					return;
 				}
 			}

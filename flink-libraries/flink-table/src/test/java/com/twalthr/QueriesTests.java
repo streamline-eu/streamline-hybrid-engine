@@ -22,6 +22,10 @@ import org.junit.Test;
 
 public class QueriesTests {
 
+	// --------------------------------------------------------------------------------------------
+	// SIMPLE HEAP
+	// --------------------------------------------------------------------------------------------
+
 	@Test
 	public void testSimpleStreamHeapPara1() throws Exception {
 		Queries.run("simple", 1, 1, false, true, 0, 0L, true, true, true, "",
@@ -77,5 +81,216 @@ public class QueriesTests {
 			"/Users/twalthr/flink/data/mt/S0001/validate");
 	}
 
+	@Test
+	public void testSimpleWatermarkHeapPara8() throws Exception {
+		Queries.run("simple", 8, 8, true, true, 1, 0L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
 
+	@Test
+	public void testSimpleWatermarkHeapPara1WithMax16() throws Exception {
+		Queries.run("simple", 16, 1, true, true, 1, 0L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleWatermarkHeapPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, true, true, 1, 0L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicProctimeHeapPara1() throws Exception {
+		Queries.run("simple", 1, 1, false, true, 2, 100L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicProctimeHeapPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, false, true, 2, 100L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicRowtimeHeapPara1() throws Exception {
+		Queries.run("simple", 1, 1, true, true, 2, 100L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicRowtimeHeapPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, true, true, 2, 100L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// SIMPLE ROCKSDB
+	// --------------------------------------------------------------------------------------------
+
+	@Test
+	public void testSimpleStreamRocksPara1() throws Exception {
+		Queries.run("simple", 1, 1, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleStreamRocksPara8() throws Exception {
+		Queries.run("simple", 8, 8, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleStreamRocksPara1WithMax16() throws Exception {
+		Queries.run("simple", 16, 1, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleStreamRocksPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleWatermarkRocksPara1() throws Exception {
+		Queries.run("simple", 1, 1, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleWatermarkRocksPara8() throws Exception {
+		Queries.run("simple", 8, 8, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleWatermarkRocksPara1WithMax16() throws Exception {
+		Queries.run("simple", 16, 1, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimpleWatermarkRocksPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicProctimeRocksPara1() throws Exception {
+		Queries.run("simple", 1, 1, false, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicProctimeRocksPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, false, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicRowtimeRocksPara1() throws Exception {
+		Queries.run("simple", 1, 1, true, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
+
+	@Test
+	public void testSimplePeriodicRowtimeRocksPara8WithMax16() throws Exception {
+		Queries.run("simple", 16, 8, true, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+		ValidationSimpleAndMany.run("simple",
+			"/Users/twalthr/flink/data/mt/S0001/prepared",
+			"/Users/twalthr/flink/data/mt/S0001/result",
+			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
 }

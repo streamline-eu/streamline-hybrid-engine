@@ -58,7 +58,8 @@ public final class CubeCellJoin {
 	// constants
 	private static final byte NULL = (byte) 1;
 	private static final byte NOT_NULL = (byte) 0;
-	private static final byte ZERO = (byte) 0;
+	private static final byte ZERO = (byte) 0x00;
+	private static final byte MAX = (byte) 0xFF;
 
 	// state
 	private final ValueState<Long> idCounter; // for variable-length single keys and overall values
@@ -66,13 +67,13 @@ public final class CubeCellJoin {
 	private final MapState<ByteKey, byte[]> dictionaryValueState; // value -> (value id, count)
 	private final SortedMapState<ByteKey, byte[]>[] timedState; // (timestamp, order id) -> (total order key, value id, insert/delete)
 	private final SortedMapState<ByteKey, Long>[] structureState; // (total order key, value id) -> count
+	private final Navigator<ByteKey, Long>[] structureNavigators; // contains all structure state navigators
 	private final Navigator<ByteKey, ?>[] joinNavigators; // contains structure state navigators but one delta state navigator
 	private final ValueState<Boolean>[] deltaStateEmpty; // marks tables as empty or filled with at least one entry
 	private final SortedMapState<ByteKey, byte[]>[] deltaState; // (total order key, order id) -> (value id, insert/delete)
 
 	// config
 	private final boolean timedBuffering; // records are buffered according to their timestamp
-	private final boolean batchBuffering; // records are buffered for batching joins
 	private final boolean quickPath; // no buffering at all
 	private final TypeSerializer<?>[][] tableFieldSerializers; // field serializers per table
 
@@ -134,7 +135,6 @@ public final class CubeCellJoin {
 		// config
 		this.tableFieldSerializers = tableFieldSerializers;
 		this.timedBuffering = timedBuffering;
-		this.batchBuffering = batchBuffering;
 		this.quickPath = !timedBuffering && !batchBuffering;
 
 		// pre-calculated schema information
@@ -350,6 +350,7 @@ public final class CubeCellJoin {
 			structureState[tableIdx] = context.getSortedMapState(
 				new SortedMapStateDescriptor<>("s" + tableIdx, new FixedByteKeySerializer(tableTotalOrderKeyLengths[tableIdx] + 8), LongSerializer.INSTANCE));
 		}
+		structureNavigators = (Navigator<ByteKey, Long>[]) new Navigator[tableCount];
 		joinNavigators = (Navigator<ByteKey, ?>[]) new Navigator[tableCount];
 	}
 
@@ -561,14 +562,16 @@ public final class CubeCellJoin {
 		// initialize navigators
 		for (int tableIdx = 0; tableIdx < structureState.length; ++tableIdx) {
 			// initiate navigators
-			joinNavigators[tableIdx] = structureState[tableIdx].navigator();
+			structureNavigators[tableIdx] = structureState[tableIdx].navigator();
+			joinNavigators[tableIdx] = structureNavigators[tableIdx];
 		}
 
 		// quick path
 		// only join the filled delta
 		if (quickPath) {
 			currentDeltaIndex = tableIdx;
-			joinNavigators[tableIdx] = deltaState[tableIdx].navigator();
+			final Navigator<ByteKey, byte[]> deltaNavigator = deltaState[tableIdx].navigator();
+			joinNavigators[tableIdx] = deltaNavigator;
 
 			// join
 			if (!isSingleRecordEnd) {
@@ -576,7 +579,10 @@ public final class CubeCellJoin {
 			}
 
 			// merge
-			applyDelta();
+			applyDelta(deltaNavigator);
+
+			// close delta navigator for RocksDB
+			deltaNavigator.close();
 		}
 		// perform a delta join with each non-empty buffer
 		else {
@@ -588,20 +594,29 @@ public final class CubeCellJoin {
 
 					// restore previous navigator
 					if (i > 0) {
-						joinNavigators[i - 1] = structureState[i - 1].navigator();
+						joinNavigators[i - 1] = structureNavigators[i - 1];
 					}
 
 					// set current delta index
 					currentDeltaIndex = i;
-					joinNavigators[i] = deltaState[i].navigator();
+					final Navigator<ByteKey, byte[]> deltaNavigator = deltaState[i].navigator();
+					joinNavigators[i] = deltaNavigator;
 
 					// join
 					joinDelta();
 
 					// merge
-					applyDelta();
+					applyDelta(deltaNavigator);
+
+					// close delta navigator for RocksDB
+					deltaNavigator.close();
 				}
 			}
+		}
+
+		// dispose navigators
+		for (final Navigator<ByteKey, Long> structureNavigator : structureNavigators) {
+			structureNavigator.close();
 		}
 	}
 
@@ -672,7 +687,7 @@ public final class CubeCellJoin {
 			System.arraycopy(overallKey.getData(), 0, currentPrefixKey, 0, filledPrefixLength);
 
 			// fill remaining prefix space with zeros
-			Arrays.fill(currentPrefixKey, filledPrefixLength, currentPrefixKey.length, (byte) 0x00);
+			Arrays.fill(currentPrefixKey, filledPrefixLength, currentPrefixKey.length, ZERO);
 		}
 
 		// prepare tables and join them
@@ -781,6 +796,9 @@ public final class CubeCellJoin {
 		// replace single key of seek table
 		System.arraycopy(otherPrefixKey, otherSingleKeyOffset, seekTablePrefixKey, singleKeyOffset, singleKeyLength);
 
+		// fill remaining prefix space with zeros
+		Arrays.fill(seekTablePrefixKey, singleKeyOffset + singleKeyLength, seekTablePrefixKey.length, ZERO);
+
 		// seek
 		final ByteKey key = lookupKey;
 		key.replace(seekTablePrefixKey);
@@ -850,7 +868,7 @@ public final class CubeCellJoin {
 		final int singleKeyLength = singleKeyLengths[currentTotalOrderKey];
 
 		// set all bits after prefix key without single value. E.g. (001, 111, 111)
-		Arrays.fill(prefixKey, singleKeyOffset + singleKeyLength, prefixKeyLength, (byte) 0xFF);
+		Arrays.fill(prefixKey, singleKeyOffset + singleKeyLength, prefixKeyLength, MAX);
 
 		final Navigator<ByteKey, ?> navigator = joinNavigators[seekTable];
 
@@ -878,7 +896,7 @@ public final class CubeCellJoin {
 			// current total order key in seek table
 			final int singleKeyOffset = tableSingleKeyOffsets[table][currentTotalOrderKey];
 
-			Arrays.fill(prefixKey, singleKeyOffset, prefixKeyLength, (byte) 0x00);
+			Arrays.fill(prefixKey, singleKeyOffset, prefixKeyLength, ZERO);
 
 			// seek to prefix key
 			final ByteKey key = lookupKey;
@@ -892,12 +910,11 @@ public final class CubeCellJoin {
 		return nextMatch();
 	}
 
-	private void applyDelta() throws Exception {
+	private void applyDelta(final Navigator<ByteKey, byte[]> deltaNavigator) throws Exception {
 
 		// cache variables
 		final int deltaTable = currentDeltaIndex;
 		final SortedMapState<ByteKey, byte[]> delta = deltaState[deltaTable];
-		final Navigator<ByteKey, byte[]> deltaNavigator = delta.navigator();
 		final SortedMapState<ByteKey, Long> structure = structureState[deltaTable];
 		final int totalOrderKeyLength = tableTotalOrderKeyLengths[deltaTable];
 
@@ -1073,6 +1090,9 @@ public final class CubeCellJoin {
 
 				timedNavigator.next();
 			}
+
+			// close it again for RocksDB
+			timedNavigator.close();
 
 			// delete records
 			for (final byte[] timedKeyData : deletions) {

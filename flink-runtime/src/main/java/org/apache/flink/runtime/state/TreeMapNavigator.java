@@ -163,4 +163,9 @@ public class TreeMapNavigator<UK, UV> implements Navigator<UK, UV> {
 		}
 		return currentEntry.getValue();
 	}
+
+	@Override
+	public void close() throws Exception {
+		// nothing to do
+	}
 }

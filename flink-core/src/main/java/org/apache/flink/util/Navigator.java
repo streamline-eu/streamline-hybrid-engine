@@ -31,4 +31,6 @@ public interface Navigator<UK, UV> {
 	UK key() throws Exception;
 
 	UV value() throws Exception;
+
+	void close() throws Exception;
 }
