@@ -112,17 +112,24 @@ class MultiJoinProcessorOperator(
     if (trigger == Trigger.PERIODIC_TRIGGER) {
       getProcessingTimeService.scheduleAtFixedRate(new ProcessingTimeCallback {
         override def onProcessingTime(timestamp: Long): Unit = {
-          var cell = startKeyGroup
-          while (cell <= endKeyGroup) {
-            // set key context
-            keyedStateBackend.setCurrentKey(cell, cell)
-            // join
-            cellJoin.join()
-            cell += 1
-          }
-          output.emitWatermark(new Watermark(watermark))
+          periodicJoin()
         }
       }, 0, triggerPeriod)
+    }
+  }
+
+  private def periodicJoin(): Unit = {
+    var cell = startKeyGroup
+    while (cell <= endKeyGroup) {
+      // set key context
+      keyedStateBackend.setCurrentKey(cell, cell)
+      // join
+      cellJoin.join()
+      cell += 1
+    }
+
+    if (isEventTime) {
+      output.emitWatermark(new Watermark(watermark))
     }
   }
 
@@ -187,7 +194,7 @@ class MultiJoinProcessorOperator(
     // periodic trigger
     // moves records from time store to delta store
     // set watermark for emitting later!
-    else if (trigger == Trigger.PERIODIC_TRIGGER) {
+    else if (trigger == Trigger.PERIODIC_TRIGGER && isEventTime) {
       // pre-process watermark for all cells
       cellJoin.insertWatermark(mark.getTimestamp)
 
@@ -204,6 +211,13 @@ class MultiJoinProcessorOperator(
     // emits only watermark
     else {
       output.emitWatermark(mark)
+    }
+  }
+
+  // finally flush the buffers
+  override def close(): Unit = {
+    if (trigger == Trigger.PERIODIC_TRIGGER) {
+      periodicJoin()
     }
   }
 }

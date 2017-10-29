@@ -29,11 +29,11 @@ class HybridHyperCubeStreamPartitioner(val maxParallelism: Int)
   extends StreamPartitioner[JoinRecord]
   with ConfigurableStreamPartitioner {
 
-  val recordChannelArrayPool = new Array[Array[Int]](maxParallelism)
+  val recordChannelArrayPool = new Array[Array[Int]](maxParallelism + 1)
 
   {
     var i = 0
-    while (i < maxParallelism) {
+    while (i <= maxParallelism) {
       recordChannelArrayPool(i) = new Array[Int](i)
       i += 1
     }

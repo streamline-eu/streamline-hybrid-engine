@@ -1,26 +1,31 @@
 package com.twalthr;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.scala.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 
+import scala.Option;
+
 public class ValidationSimpleAndMany {
 
 	public static void main(String[] args) throws Exception {
-
 		final String query;
 		final String inPath;
 		final String outPath;
@@ -36,6 +41,11 @@ public class ValidationSimpleAndMany {
 			outPath = args[2];
 			validatePath = args[3];
 		}
+
+		run(query, inPath, outPath, validatePath);
+	}
+
+	public static void run(String query, String inPath, String outPath, String validatePath) throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
@@ -100,11 +110,11 @@ public class ValidationSimpleAndMany {
 				"SELECT c_ts, c_custkey, c_name, o_ts, o_orderkey, o_orderdate, o_orderstatus " +
 				"FROM customer, orders " +
 				"WHERE c_custkey = o_custkey");
-		tenv.toDataSet(expected, Row.class).writeAsText(validatePath + "/simple_expected");
+		writeToSink(expected, validatePath + "/simple_expected");
 
 		// actual
 		final CsvTableSource actualSource = CsvTableSource.builder()
-				.path(outPath + "/simple")
+				.path(outPath + "/simple_result")
 				.fieldDelimiter("|")
 				.field("c_ts", Types.LONG())
 				.field("c_custkey", Types.INT())
@@ -118,57 +128,84 @@ public class ValidationSimpleAndMany {
 		final Table actual = tenv.scan("actual");
 
 		// compare
-		final DataSet<Tuple2<Integer, Row>> expectedDs = tenv.toDataSet(expected, Row.class)
-				.mapPartition(new NumberingMapPartionFunction<>());
-		final DataSet<Tuple2<Integer, Row>> actualDs = tenv.toDataSet(actual, Row.class)
-				.mapPartition(new NumberingMapPartionFunction<>());
+		final DataSet<Tuple2<Integer, String>> expectedDs = tenv
+			.toDataSet(expected, Row.class)
+			.map(new ToStringMapFunction<>())
+			.sortPartition("*", Order.ASCENDING)
+			.mapPartition(new NumberingMapPartionFunction());
+
+		final DataSet<Tuple2<Integer, String>> actualDs = tenv
+			.toDataSet(actual, Row.class)
+			.map(new ToStringMapFunction<>())
+			.sortPartition("*", Order.ASCENDING)
+			.mapPartition(new NumberingMapPartionFunction());
 
 		final DataSet<String> result = expectedDs
 				.coGroup(actualDs)
 				.where(0)
 				.equalTo(0)
-				.with(new CoGroupFunction<Tuple2<Integer,Row>, Tuple2<Integer,Row>, String>() {
+				.with(new CoGroupFunction<Tuple2<Integer,String>, Tuple2<Integer,String>, String>() {
 
 			@Override
 			public void coGroup(
-					Iterable<Tuple2<Integer, Row>> exp,
-					Iterable<Tuple2<Integer, Row>> act,
+					Iterable<Tuple2<Integer, String>> exp,
+					Iterable<Tuple2<Integer, String>> act,
 					Collector<String> out) throws Exception {
 
-				final Iterator<Tuple2<Integer, Row>> expIter = exp.iterator();
-				final Iterator<Tuple2<Integer, Row>> actIter = act.iterator();
+				final Iterator<Tuple2<Integer, String>> expIter = exp.iterator();
+				final Iterator<Tuple2<Integer, String>> actIter = act.iterator();
 				while (expIter.hasNext() && actIter.hasNext()) {
-					final Tuple2<Integer, Row> expNext = expIter.next();
-					final Tuple2<Integer, Row> actNext = actIter.next();
+					final Tuple2<Integer, String> expNext = expIter.next();
+					final Tuple2<Integer, String> actNext = actIter.next();
 					if (!expNext.equals(actNext)) {
-						out.collect("Expected: " + expNext + " | Actual: " + actNext);
+						throw new IllegalArgumentException("Expected: " + expNext + " | Actual: " + actNext);
 					}
 				}
-				while (expIter.hasNext()) {
-					final Tuple2<Integer, Row> expNext = expIter.next();
-					out.collect("Missing: " + expNext);
+				if (expIter.hasNext()) {
+					final Tuple2<Integer, String> expNext = expIter.next();
+					throw new IllegalArgumentException("Missing: " + expNext);
 				}
-				while (actIter.hasNext()) {
-					final Tuple2<Integer, Row> actNext = actIter.next();
-					out.collect("Not expected: " + actNext);
+				if (actIter.hasNext()) {
+					final Tuple2<Integer, String> actNext = actIter.next();
+					throw new IllegalArgumentException("Not expected: " + actNext);
 				}
 			}
 		});
 
-		result.writeAsText(validatePath + "/simple");
+		result.writeAsText(validatePath + "/simple", FileSystem.WriteMode.OVERWRITE);
 	}
 
 	private static void validateMany(BatchTableEnvironment tenv, String inPath, String outPath, String validatePath) {
 
 	}
 
-	public static class NumberingMapPartionFunction<T> implements MapPartitionFunction<T, Tuple2<Integer, T>> {
+	public static void writeToSink(Table t, String path) {
+		Option<String> del = Option.<String>apply("|");
+		Option<Object> numFile = Option.<Object>apply(null);
+		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
+
+		t.writeToSink(new CsvTableSink(
+			path,
+			del,
+			numFile,
+			mode));
+	}
+
+	public static class ToStringMapFunction<T> implements MapFunction<T, String> {
+
+		@Override
+		public String map(T value) throws Exception {
+			return value.toString().replace(',', '|');
+		}
+	}
+
+	public static class NumberingMapPartionFunction implements MapPartitionFunction<String, Tuple2<Integer, String>> {
 
 		private int idx = 0;
 
 		@Override
-		public void mapPartition(Iterable<T> iterable, Collector<Tuple2<Integer, T>> out) throws Exception {
-			for (T value : iterable) {
+		public void mapPartition(Iterable<String> iterable, Collector<Tuple2<Integer, String>> out) throws Exception {
+			for (String value : iterable) {
 				out.collect(new Tuple2<>(idx++, value));
 			}
 		}

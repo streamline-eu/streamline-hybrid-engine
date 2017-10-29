@@ -4,6 +4,8 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.Types;
@@ -25,6 +27,8 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
+
 public class PreparationSimpleAndMany {
 
 	public static void main(String[] args) throws Exception {
@@ -42,7 +46,7 @@ public class PreparationSimpleAndMany {
 		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+		//env.setParallelism(1);
 		BatchTableEnvironment tenv = new BatchTableEnvironment(env, TableConfig.DEFAULT());
 
 		{
@@ -163,7 +167,7 @@ public class PreparationSimpleAndMany {
 					orderedCustomersDataSet.mapPartition(new OutOfOrderFunction<>(days)),
 					"c_ts, c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment");
 
-			orderedCustomersTable.writeToSink(new CsvTableSink(outPath + "/customer", "|"));
+			writeToSink(orderedCustomersTable, outPath + "/customer");
 		}
 
 		// write out of order orders
@@ -181,7 +185,7 @@ public class PreparationSimpleAndMany {
 					orderedOrdersDataSet.mapPartition(new OutOfOrderFunction<>(days)),
 					"o_ts, o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment");
 
-			orderedOrdersTable.writeToSink(new CsvTableSink(outPath + "/orders", "|"));
+			writeToSink(orderedOrdersTable, outPath + "/orders");
 		}
 
 		// write out of order lineitems
@@ -199,7 +203,7 @@ public class PreparationSimpleAndMany {
 					"l_ts, l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, " +
 					"l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment");
 
-			orderedLineitemsTable.writeToSink(new CsvTableSink(outPath + "/lineitem", "|"));
+			writeToSink(orderedLineitemsTable, outPath + "/lineitem");
 		}
 
 		// write suppliers
@@ -208,7 +212,7 @@ public class PreparationSimpleAndMany {
 					"SELECT TIMESTAMP '1991-12-31 12:00:00.000' AS s_ts, s_suppkey, s_name, s_address, s_nationkey, s_phone, s_acctbal, s_comment " +
 					"FROM supplier");
 
-			ts.writeToSink(new CsvTableSink(outPath + "/supplier", "|"));
+			writeToSink(ts, outPath + "/supplier");
 		}
 
 		// write nation
@@ -217,7 +221,7 @@ public class PreparationSimpleAndMany {
 					"SELECT TIMESTAMP '1991-12-31 12:00:00.000' AS n_ts, n_nationkey, n_name, n_regionkey, n_comment " +
 					"FROM nation");
 
-			tn.writeToSink(new CsvTableSink(outPath + "/nation", "|"));
+			writeToSink(tn, outPath + "/nation");
 		}
 
 		// write region
@@ -226,10 +230,22 @@ public class PreparationSimpleAndMany {
 					"SELECT TIMESTAMP '1991-12-31 12:00:00.000' AS r_ts, r_regionkey, r_name, r_comment " +
 					"FROM region");
 
-			tr.writeToSink(new CsvTableSink(outPath + "/region", "|"));
+			writeToSink(tr, outPath + "/region");
 		}
 
 		env.execute();
+	}
+
+	public static void writeToSink(Table t, String path) {
+		Option<String> del = Option.<String>apply("|");
+		Option<Object> numFile = Option.<Object>apply(null);
+		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
+
+		t.writeToSink(new CsvTableSink(
+			path,
+			del,
+			numFile,
+			mode));
 	}
 
 	public static class ConvertTimestampFunction extends ScalarFunction {

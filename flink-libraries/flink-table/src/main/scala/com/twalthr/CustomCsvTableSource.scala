@@ -116,7 +116,7 @@ class CustomCsvTableSource(
     */
   override def getDataStream(streamExecEnv: StreamExecutionEnvironment): DataStream[Row] = {
     val input = streamExecEnv.createInput(createCsvInput(), returnType)
-    if (outOfOrder != -1) {
+    if (outOfOrder != -1 && rowtime) {
       input.assignTimestampsAndWatermarks(new WatermarkAssigner(outOfOrder))
     } else {
       input // ending sources emit a final Long.MAX_VALUE watermark
