@@ -67,7 +67,6 @@ public final class CubeCellJoin {
 	private final MapState<ByteKey, byte[]> dictionaryValueState; // value -> (value id, count)
 	private final SortedMapState<ByteKey, byte[]>[] timedState; // (timestamp, order id) -> (total order key, value id, insert/delete)
 	private final SortedMapState<ByteKey, Long>[] structureState; // (total order key, value id) -> count
-	private final Navigator<ByteKey, Long>[] structureNavigators; // contains all structure state navigators
 	private final Navigator<ByteKey, ?>[] joinNavigators; // contains structure state navigators but one delta state navigator
 	private final ValueState<Boolean>[] deltaStateEmpty; // marks tables as empty or filled with at least one entry
 	private final SortedMapState<ByteKey, byte[]>[] deltaState; // (total order key, order id) -> (value id, insert/delete)
@@ -350,7 +349,6 @@ public final class CubeCellJoin {
 			structureState[tableIdx] = context.getSortedMapState(
 				new SortedMapStateDescriptor<>("s" + tableIdx, new FixedByteKeySerializer(tableTotalOrderKeyLengths[tableIdx] + 8), LongSerializer.INSTANCE));
 		}
-		structureNavigators = (Navigator<ByteKey, Long>[]) new Navigator[tableCount];
 		joinNavigators = (Navigator<ByteKey, ?>[]) new Navigator[tableCount];
 	}
 
@@ -561,9 +559,7 @@ public final class CubeCellJoin {
 
 		// initialize navigators
 		for (int tableIdx = 0; tableIdx < structureState.length; ++tableIdx) {
-			// initiate navigators
-			structureNavigators[tableIdx] = structureState[tableIdx].navigator();
-			joinNavigators[tableIdx] = structureNavigators[tableIdx];
+			joinNavigators[tableIdx] = structureState[tableIdx].navigator();
 		}
 
 		// quick path
@@ -594,12 +590,14 @@ public final class CubeCellJoin {
 
 					// restore previous navigator
 					if (i > 0) {
-						joinNavigators[i - 1] = structureNavigators[i - 1];
+						joinNavigators[i - 1] = structureState[i - 1].navigator();
 					}
 
 					// set current delta index
 					currentDeltaIndex = i;
 					final Navigator<ByteKey, byte[]> deltaNavigator = deltaState[i].navigator();
+					// close last navigator
+					joinNavigators[i].close();
 					joinNavigators[i] = deltaNavigator;
 
 					// join
@@ -615,8 +613,8 @@ public final class CubeCellJoin {
 		}
 
 		// dispose navigators
-		for (final Navigator<ByteKey, Long> structureNavigator : structureNavigators) {
-			structureNavigator.close();
+		for (final Navigator<ByteKey, ?> joinNavigator : joinNavigators) {
+			joinNavigator.close();
 		}
 	}
 

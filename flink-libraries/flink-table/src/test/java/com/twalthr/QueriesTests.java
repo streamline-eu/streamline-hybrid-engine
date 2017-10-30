@@ -293,4 +293,19 @@ public class QueriesTests {
 			"/Users/twalthr/flink/data/mt/S0001/result",
 			"/Users/twalthr/flink/data/mt/S0001/validate");
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// MANY HEAP
+	// --------------------------------------------------------------------------------------------
+
+	@Test
+	public void testManyStreamHeapPara1() throws Exception {
+		Queries.run("many", 1, 1, false, true, 0, 0L, true, true, true, "",
+			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
+			10, 0.0001, -1, -1, -1, false);
+//		ValidationSimpleAndMany.run("simple",
+//			"/Users/twalthr/flink/data/mt/S0001/prepared",
+//			"/Users/twalthr/flink/data/mt/S0001/result",
+//			"/Users/twalthr/flink/data/mt/S0001/validate");
+	}
 }

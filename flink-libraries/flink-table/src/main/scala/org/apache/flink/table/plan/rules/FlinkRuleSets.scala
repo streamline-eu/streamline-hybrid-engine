@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.plan.rules
 
+import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.RelFactories
+import org.apache.calcite.rel.logical.{LogicalJoin, LogicalProject}
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.nodes.logical._
@@ -167,6 +170,9 @@ object FlinkRuleSets {
     // join rules
     JoinPushExpressionsRule.INSTANCE,
     JoinToMultiJoinRule.INSTANCE,
+    MultiJoinProjectTransposeRule.MULTI_BOTH_PROJECT,
+    MultiJoinProjectTransposeRule.MULTI_LEFT_PROJECT,
+    MultiJoinProjectTransposeRule.MULTI_RIGHT_PROJECT,
 
     // remove union with only a single child
     UnionEliminatorRule.INSTANCE,

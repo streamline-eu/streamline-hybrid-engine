@@ -33,6 +33,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sinks.CsvTableSink;
+import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -463,9 +464,9 @@ public class Queries {
 				.field("r_name", Types.STRING())
 				.field("r_comment", Types.STRING())
 				.build();
-		nation.setRowtime(isRowtime);
-		nation.setOutOfOrder(-1, null);
-		nation.setTimePrefix("r_");
+		region.setRowtime(isRowtime);
+		region.setOutOfOrder(-1, null);
+		region.setTimePrefix("r_");
 
 		if (useStatistics && !skewed) {
 			{
@@ -625,14 +626,22 @@ public class Queries {
 					"  JOINED_TIME(c_rowtime, o_rowtime, l_rowtime, s_rowtime, n_rowtime, r_rowtime)" +
 					"GROUP BY n_name "); // we skip sorting as it would limit the parallelism to 1
 		} else {
+//			t = tenv.sql(
+//					"SELECT n_name, SUM(l_extendedprice * (1 - l_discount)) AS revenue " +
+//					"FROM customer, orders, lineitem, supplier, nation, region " +
+//					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
+//					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
+//					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
+//					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)" +
+//					"GROUP BY n_name"); // we skip sorting as it would limit the parallelism to 1
+
 			t = tenv.sql(
-					"SELECT n_name, SUM(l_extendedprice * (1 - l_discount)) AS revenue " +
+					"SELECT n_name, l_extendedprice * (1 - l_discount) AS revenue " +
 					"FROM customer, orders, lineitem, supplier, nation, region " +
 					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
 					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
-					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
-					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)" +
-					"GROUP BY n_name"); // we skip sorting as it would limit the parallelism to 1
+					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND " +
+					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)"); // we skip sorting as it would limit the parallelism to 1
 		}
 		final StreamQueryConfig conf;
 		if (trigger == 0) {
@@ -649,10 +658,13 @@ public class Queries {
 		Option<Object> numFile = Option.<Object>apply(null);
 		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
 
-		t.writeToSink(new CsvTableSink(
-			outPath + "/many_result",
-			del,
-			numFile,
-			mode), conf);
+//		t.writeToSink(new CsvTableSink(
+//			outPath + "/many_result",
+//			del,
+//			numFile,
+//			mode), conf);
+//		tenv.toRetractStream(t, Row.class);
+
+		tenv.explain(t);
 	}
 }

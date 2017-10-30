@@ -327,7 +327,7 @@ public final class HybridHyperCube {
 	private void calculateHyperCubeMap() {
 		final TreeMap<Integer, CubePosition> cellsWithGaps = new TreeMap<>();
 		// handle special case 1 dimension
-		if (dimensions == 1) {
+		if (bestMaxFactor == 1) {
 			for (int i = 0; i < bestConfiguration[0]; ++i) {
 				final CubePosition cubePosition = new CubePosition(1);
 				cubePosition.coords[0] = i;
