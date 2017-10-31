@@ -376,7 +376,7 @@ public final class CubeCellJoin {
 		}
 
 		// deserialize null mask
-		readIntoNullMask(tableFieldSerializers.length, serializedRow, nullMask);
+		readIntoNullMask(fieldSerializers.length, serializedRow, nullMask);
 
 		// store keys in inter cube cell buffers
 		int offset = 0;
@@ -641,7 +641,7 @@ public final class CubeCellJoin {
 				// current total order key match
 				// or a previous total order key did not match
 				else {
-					match = nextTotalOrderKey();
+					match = nextTotalOrderKey(); // TODO supplier 68 can not be found!!!!!!
 				}
 			} else {
 				// reset all prefixes that might have overflown
@@ -809,9 +809,12 @@ public final class CubeCellJoin {
 		// key
 		final ByteKey overallKey = joinNavigators[seekTable].key();
 
-		// we are at the very end
+		// we are at the end of this path
 		if (overallKey == null) {
-			isJoinEnd = true;
+			// we are at the very end!
+			if (currentTotalOrderKey == 0) {
+				isJoinEnd = true;
+			}
 			return true;
 		}
 

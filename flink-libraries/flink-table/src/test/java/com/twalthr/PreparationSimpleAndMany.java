@@ -36,9 +36,9 @@ public class PreparationSimpleAndMany {
 		final int days;
 		final String outPath;
 		if (args.length == 0) {
-			inPath = "/Users/twalthr/flink/data/mt/S0001/in";
+			inPath = "/Users/twalthr/flink/data/mt/S01/in";
 			days = 5;
-			outPath = "/Users/twalthr/flink/data/mt/S0001/prepared";
+			outPath = "/Users/twalthr/flink/data/mt/S01/prepared";
 		} else {
 			inPath = args[0];
 			days = Integer.parseInt(args[1]);
@@ -209,7 +209,7 @@ public class PreparationSimpleAndMany {
 		// write suppliers
 		{
 			Table ts = tenv.sql(
-					"SELECT TIMESTAMP '1991-12-31 12:00:00.000' AS s_ts, s_suppkey, s_name, s_address, s_nationkey, s_phone, s_acctbal, s_comment " +
+					"SELECT 694180800000 AS s_ts, s_suppkey, s_name, s_address, s_nationkey, s_phone, s_acctbal, s_comment " +
 					"FROM supplier");
 
 			writeToSink(ts, outPath + "/supplier");
@@ -218,7 +218,7 @@ public class PreparationSimpleAndMany {
 		// write nation
 		{
 			Table tn = tenv.sql(
-					"SELECT TIMESTAMP '1991-12-31 12:00:00.000' AS n_ts, n_nationkey, n_name, n_regionkey, n_comment " +
+					"SELECT 694180800000 AS n_ts, n_nationkey, n_name, n_regionkey, n_comment " +
 					"FROM nation");
 
 			writeToSink(tn, outPath + "/nation");
@@ -227,7 +227,7 @@ public class PreparationSimpleAndMany {
 		// write region
 		{
 			Table tr = tenv.sql(
-					"SELECT TIMESTAMP '1991-12-31 12:00:00.000' AS r_ts, r_regionkey, r_name, r_comment " +
+					"SELECT 694180800000 AS r_ts, r_regionkey, r_name, r_comment " +
 					"FROM region");
 
 			writeToSink(tr, outPath + "/region");

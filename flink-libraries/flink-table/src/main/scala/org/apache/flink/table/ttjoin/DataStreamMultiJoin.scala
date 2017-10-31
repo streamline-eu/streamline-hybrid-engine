@@ -43,6 +43,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class DataStreamMultiJoin(
     cluster: RelOptCluster,
@@ -455,7 +456,36 @@ class DataStreamMultiJoin(
       }
     })
 
+    // DEBUG
+//    printKeySets(fullLogicalKeySets)
+//    printOrderedKeySets(fullLogicalKeySets, totalKeyOrder)
+//    println(s"Number of cell groups: ${groupCellsMap.length}")
+//    println(s"Cell Groups: \n${printCellGroups(groupCellsMap)}")
+
     processedStream
+  }
+
+  private def printKeySets(fullLogicalKeySets: mutable.ArrayBuffer[mutable.Set[Int]]): Unit = {
+    val str = fullLogicalKeySets.zipWithIndex.map {
+      case (keySet, keySetIdx) =>
+        s"$keySetIdx = {" + keySet.map(getRowType.getFieldNames()(_)) + "}"
+    }.mkString("\n")
+    println("KEYSETS: \n" + str + "\n\n")
+  }
+
+  private def printOrderedKeySets(fullLogicalKeySets: mutable.ArrayBuffer[mutable.Set[Int]], totalKeyOrder: Array[Int]): Unit = {
+    val str = totalKeyOrder.map { keySet =>
+      s"{" + fullLogicalKeySets(keySet).map(getRowType.getFieldNames()(_)) + "}"
+    }.mkString("\n")
+    println("TOTAL ORDER KEYSETS: \n" + str + "\n\n")
+  }
+
+  private def printCellGroups(groupCellsMap: Array[Array[Int]]): String = {
+    val str = groupCellsMap.zipWithIndex.map { case (cell, idx) =>
+      s"$idx: ${cell.mkString(", ")}"
+    }.mkString("\n")
+
+    str
   }
 
   private def joinSelectionToString: String = {

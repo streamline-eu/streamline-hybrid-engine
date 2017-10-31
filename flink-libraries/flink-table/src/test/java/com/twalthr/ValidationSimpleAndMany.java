@@ -9,17 +9,24 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.scala.DataStream;
+import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.Trigger;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.plan.stats.ColumnStats;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import scala.Option;
 
@@ -128,7 +135,139 @@ public class ValidationSimpleAndMany {
 		final Table actual = tenv.scan("actual");
 
 		// compare
-		final DataSet<Tuple2<Integer, String>> expectedDs = tenv
+		compare(tenv, expected, actual, validatePath);
+	}
+
+	private static void validateMany(BatchTableEnvironment tenv, String inPath, String outPath, String validatePath) {
+
+		// expected
+		final CsvTableSource customer = CsvTableSource.builder()
+				.path(inPath + "/customer")
+				.fieldDelimiter("|")
+				.field("c_ts", Types.LONG())
+				.field("c_custkey", Types.INT())
+				.field("c_name", Types.STRING())
+				.field("c_address", Types.STRING())
+				.field("c_nationkey", Types.INT())
+				.field("c_phone", Types.STRING())
+				.field("c_acctbal", Types.DOUBLE())
+				.field("c_mktsegment", Types.STRING())
+				.field("c_comment", Types.STRING())
+				.build();
+
+		final CsvTableSource orders = CsvTableSource.builder()
+				.path(inPath + "/orders")
+				.fieldDelimiter("|")
+				.field("o_ts", Types.LONG())
+				.field("o_orderkey", Types.INT())
+				.field("o_custkey", Types.INT())
+				.field("o_orderstatus", Types.STRING())
+				.field("o_totalprice", Types.DOUBLE())
+				.field("o_orderdate", Types.STRING())
+				.field("o_orderpriority", Types.STRING())
+				.field("o_clerk", Types.STRING())
+				.field("o_shippriority", Types.INT())
+				.field("o_comment", Types.STRING())
+				.build();
+
+		final CsvTableSource lineitem = CsvTableSource.builder()
+				.path(inPath + "/lineitem")
+				.fieldDelimiter("|")
+				.field("l_ts", Types.LONG())
+				.field("l_orderkey", Types.INT())
+				.field("l_partkey", Types.INT())
+				.field("l_suppkey", Types.INT())
+				.field("l_linenumber", Types.INT())
+				.field("l_quantity", Types.INT())
+				.field("l_extendedprice", Types.DOUBLE())
+				.field("l_discount", Types.DOUBLE())
+				.field("l_tax", Types.DOUBLE())
+				.field("l_returnflag", Types.STRING())
+				.field("l_linestatus", Types.STRING())
+				.field("l_shipdate", Types.STRING())
+				.field("l_commitdate", Types.STRING())
+				.field("l_receiptdate", Types.STRING())
+				.field("l_shipinstruct", Types.STRING())
+				.field("l_shipmode", Types.STRING())
+				.field("l_comment", Types.STRING())
+				.build();
+
+		final CsvTableSource supplier = CsvTableSource.builder()
+				.path(inPath + "/supplier")
+				.fieldDelimiter("|")
+				.field("s_ts", Types.LONG())
+				.field("s_suppkey", Types.INT())
+				.field("s_name", Types.STRING())
+				.field("s_address", Types.STRING())
+				.field("s_nationkey", Types.INT())
+				.field("s_phone", Types.STRING())
+				.field("s_acctbal", Types.DOUBLE())
+				.field("s_comment", Types.STRING())
+				.build();
+
+		final CsvTableSource nation = CsvTableSource.builder()
+				.path(inPath + "/nation")
+				.fieldDelimiter("|")
+				.field("n_ts", Types.LONG())
+				.field("n_nationkey", Types.INT())
+				.field("n_name", Types.STRING())
+				.field("n_regionkey", Types.INT())
+				.field("n_comment", Types.STRING())
+				.build();
+
+		final CsvTableSource region = CsvTableSource.builder()
+				.path(inPath + "/region")
+				.fieldDelimiter("|")
+				.field("r_ts", Types.LONG())
+				.field("r_regionkey", Types.INT())
+				.field("r_name", Types.STRING())
+				.field("r_comment", Types.STRING())
+				.build();
+
+		tenv.registerTableSource("outOfOrderCustomer", customer);
+		tenv.registerTableSource("outOfOrderOrders", orders);
+		tenv.registerTableSource("outOfOrderLineitem", lineitem);
+		tenv.registerTableSource("outOfOrderSupplier", supplier);
+		tenv.registerTableSource("outOfOrderNation", nation);
+		tenv.registerTableSource("outOfOrderRegion", region);
+
+		final Table customerTable = tenv.sql("SELECT * FROM outOfOrderCustomer ORDER BY c_ts");
+		tenv.registerTable("customer", customerTable);
+		final Table ordersTable = tenv.sql("SELECT * FROM outOfOrderOrders ORDER BY o_ts");
+		tenv.registerTable("orders", ordersTable);
+		final Table lineitemTable = tenv.sql("SELECT * FROM outOfOrderLineitem ORDER BY l_ts");
+		tenv.registerTable("lineitem", lineitemTable);
+		final Table supplierTable = tenv.sql("SELECT * FROM outOfOrderSupplier ORDER BY s_ts");
+		tenv.registerTable("supplier", supplierTable);
+		final Table nationTable = tenv.sql("SELECT * FROM outOfOrderNation ORDER BY n_ts");
+		tenv.registerTable("nation", nationTable);
+		final Table regionTable = tenv.sql("SELECT * FROM outOfOrderRegion ORDER BY r_ts");
+		tenv.registerTable("region", regionTable);
+
+		final Table expected = tenv.sql(
+			"SELECT c_custkey, o_custkey, o_orderkey, l_orderkey, l_suppkey, s_suppkey, s_nationkey, n_nationkey, n_regionkey, r_regionkey " +
+			"FROM customer, orders, lineitem, supplier, nation, region " +
+			"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
+			"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
+			"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR");
+		writeToSink(expected, validatePath + "/many_expected");
+
+//		// actual
+//		final CsvTableSource actualSource = CsvTableSource.builder()
+//				.path(outPath + "/many_result")
+//				.fieldDelimiter("|")
+//				.field("n_name", Types.STRING())
+//				.field("revenue", Types.DOUBLE())
+//				.build();
+//		tenv.registerTableSource("actual", actualSource);
+//		final Table actual = tenv.scan("actual");
+//
+//		// compare
+//		compare(tenv, expected, actual, validatePath);
+	}
+
+	public static void compare(BatchTableEnvironment tenv, Table expected, Table actual, String validatePath) {
+				final DataSet<Tuple2<Integer, String>> expectedDs = tenv
 			.toDataSet(expected, Row.class)
 			.map(new ToStringMapFunction<>())
 			.sortPartition("*", Order.ASCENDING)
@@ -172,11 +311,7 @@ public class ValidationSimpleAndMany {
 			}
 		});
 
-		result.writeAsText(validatePath + "/simple", FileSystem.WriteMode.OVERWRITE);
-	}
-
-	private static void validateMany(BatchTableEnvironment tenv, String inPath, String outPath, String validatePath) {
-
+		result.writeAsText(validatePath + "/valout", FileSystem.WriteMode.OVERWRITE);
 	}
 
 	public static void writeToSink(Table t, String path) {

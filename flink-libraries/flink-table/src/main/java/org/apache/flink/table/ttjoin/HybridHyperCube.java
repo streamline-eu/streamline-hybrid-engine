@@ -327,13 +327,20 @@ public final class HybridHyperCube {
 	private void calculateHyperCubeMap() {
 		final TreeMap<Integer, CubePosition> cellsWithGaps = new TreeMap<>();
 		// handle special case 1 dimension
-		if (bestMaxFactor == 1) {
+		if (dimensions == 1) {
 			for (int i = 0; i < bestConfiguration[0]; ++i) {
 				final CubePosition cubePosition = new CubePosition(1);
 				cubePosition.coords[0] = i;
 				cellsWithGaps.put(i, cubePosition);
 			}
-		} else {
+		}
+		// handle special case 1 max parallelism
+		else if (bestMaxFactor == 1) {
+			final CubePosition cubePosition = new CubePosition(dimensions);
+			cellsWithGaps.put(0, cubePosition);
+		}
+		// create hilbert cells
+		else {
 			// round up to next power of 2
 			final int curveBits = 32 - Integer.numberOfLeadingZeros(bestMaxFactor - 1);
 			final HilbertCurve curve = HilbertCurve.bits(curveBits).dimensions(dimensions);

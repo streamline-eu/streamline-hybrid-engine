@@ -28,7 +28,7 @@ import java.io.UTFDataFormatException;
 import java.nio.ByteOrder;
 
 /**
- * Storage for variable-length byte data.
+ * Storage for variable-length byte data. ENDIAN AWARE!!!!
  */
 public final class ByteStore implements DataOutputView, DataInputView {
 

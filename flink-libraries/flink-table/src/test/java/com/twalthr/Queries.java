@@ -70,6 +70,7 @@ public class Queries {
 		final int nodes;
 		final int edges;
 		final boolean skewed;
+		final boolean ignoreAggregation;
 		if (args.length == 0) {
 			query = "simple";
 			maxParallelism = 4;
@@ -90,6 +91,7 @@ public class Queries {
 			nodes = 4097; // estimated
 			edges = 100000;
 			skewed = false;
+			ignoreAggregation = true;
 		} else {
 			query = args[0];
 			maxParallelism = Integer.parseInt(args[1]);
@@ -110,17 +112,19 @@ public class Queries {
 			nodes = Integer.parseInt(args[16]);
 			edges = Integer.parseInt(args[17]);
 			skewed = Boolean.parseBoolean(args[18]);
+			ignoreAggregation = Boolean.parseBoolean(args[19]);
 		}
 
 		run(query, maxParallelism, parallelism, isRowtime, useStatistics, trigger, triggerPeriod,
 			isHeap, async, inc, checkpointPath, inPath, outPath, days, dataFactor, seconds, nodes, edges,
-			skewed);
+			skewed, ignoreAggregation);
 	}
 
 	public static void run(
 			String query, int maxParallelism, int parallelism, boolean isRowtime, boolean useStatistics,
 			int trigger, long triggerPeriod, boolean isHeap, boolean async, boolean inc, String checkpointPath,
-			String inPath, String outPath, int days, double dataFactor, int seconds, int nodes, int edges, boolean skewed) throws Exception {
+			String inPath, String outPath, int days, double dataFactor, int seconds, int nodes, int edges,
+			boolean skewed, boolean ignoreAggregation) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		if (isRowtime) {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -145,7 +149,7 @@ public class Queries {
 				break;
 
 			case "many":
-				runMany(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed);
+				runMany(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed, ignoreAggregation);
 				break;
 
 			default:
@@ -365,7 +369,7 @@ public class Queries {
 
 	public static void runMany(StreamTableEnvironment tenv, String inPath, String outPath,
 			int days, boolean isRowtime, boolean useStatistics, int trigger, long triggerPeriod, double dataFactor,
-			boolean skewed) {
+			boolean skewed, boolean ignoreAggregation) {
 
 		final CustomCsvTableSource customer = CustomCsvTableSource.builder()
 				.path(inPath + "/customer")
@@ -616,32 +620,57 @@ public class Queries {
 		}
 
 		final Table t;
+		// ROWTIME
 		if (isRowtime) {
-			t = tenv.sql(
+			// NO AGG
+			if (ignoreAggregation) {
+				// we skip sorting as it would limit the parallelism to 1
+				t = tenv.sql(
+					"SELECT n_name, l_extendedprice * (1 - l_discount) AS revenue " +
+					"FROM customer, orders, lineitem, supplier, nation, region " +
+					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
+					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
+					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
+					"  JOINED_TIME(c_rowtime, o_rowtime, l_rowtime, s_rowtime, n_rowtime, r_rowtime)");
+			}
+			// WITH AGG
+			else {
+				// we skip sorting as it would limit the parallelism to 1
+				t = tenv.sql(
 					"SELECT n_name, SUM(l_extendedprice * (1 - l_discount)) AS revenue " +
 					"FROM customer, orders, lineitem, supplier, nation, region " +
 					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
 					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
 					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
 					"  JOINED_TIME(c_rowtime, o_rowtime, l_rowtime, s_rowtime, n_rowtime, r_rowtime)" +
-					"GROUP BY n_name "); // we skip sorting as it would limit the parallelism to 1
-		} else {
-//			t = tenv.sql(
-//					"SELECT n_name, SUM(l_extendedprice * (1 - l_discount)) AS revenue " +
-//					"FROM customer, orders, lineitem, supplier, nation, region " +
-//					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
-//					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
-//					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
-//					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)" +
-//					"GROUP BY n_name"); // we skip sorting as it would limit the parallelism to 1
-
-			t = tenv.sql(
-					"SELECT n_name, l_extendedprice * (1 - l_discount) AS revenue " +
+					"GROUP BY n_name ");
+			}
+		}
+		// PROCTIME
+		else {
+			// NO AGG
+			if (ignoreAggregation) {
+				// we skip sorting as it would limit the parallelism to 1
+				t = tenv.sql(
+					"SELECT c_custkey, o_custkey, o_orderkey, l_orderkey, l_suppkey, s_suppkey, s_nationkey, n_nationkey, n_regionkey, r_regionkey " +
 					"FROM customer, orders, lineitem, supplier, nation, region " +
 					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
 					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
-					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND " +
-					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)"); // we skip sorting as it would limit the parallelism to 1
+					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
+					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)");
+			}
+			// WITH AGG
+			else {
+				// we skip sorting as it would limit the parallelism to 1
+				t = tenv.sql(
+					"SELECT n_name, SUM(l_extendedprice * (1 - l_discount)) AS revenue " +
+					"FROM customer, orders, lineitem, supplier, nation, region " +
+					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
+					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
+					"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR AND" +
+					"  JOINED_TIME(c_proctime, o_proctime, l_proctime, s_proctime, n_proctime, r_proctime)" +
+					"GROUP BY n_name");
+			}
 		}
 		final StreamQueryConfig conf;
 		if (trigger == 0) {
@@ -658,13 +687,15 @@ public class Queries {
 		Option<Object> numFile = Option.<Object>apply(null);
 		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
 
-//		t.writeToSink(new CsvTableSink(
-//			outPath + "/many_result",
-//			del,
-//			numFile,
-//			mode), conf);
-//		tenv.toRetractStream(t, Row.class);
-
-		tenv.explain(t);
+		if (ignoreAggregation) {
+			t.writeToSink(new CsvTableSink(
+				outPath + "/many_result",
+				del,
+				numFile,
+				mode), conf);
+		}
+		else {
+			// TODO
+		}
 	}
 }
