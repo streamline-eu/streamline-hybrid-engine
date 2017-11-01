@@ -60,6 +60,9 @@ class MultiJoinProcessorOperator(
   @transient
   var watermark: Long = _
 
+  @transient
+  var lock: AnyRef = _
+
   override def open(): Unit = {
     keyedStateBackend = getKeyedStateBackend[Int]().asInstanceOf[AbstractKeyedStateBackend[Int]]
     startKeyGroup = keyedStateBackend.getKeyGroupRange.getStartKeyGroup
@@ -108,13 +111,20 @@ class MultiJoinProcessorOperator(
 
     watermark = Long.MinValue
 
+    lock = new Object
+
     // trigger joining in fixed interval
     if (trigger == Trigger.PERIODIC_TRIGGER) {
-      getProcessingTimeService.scheduleAtFixedRate(new ProcessingTimeCallback {
+
+      val cb: ProcessingTimeCallback = new ProcessingTimeCallback() {
         override def onProcessingTime(timestamp: Long): Unit = {
           periodicJoin()
+
+          getProcessingTimeService.registerTimer(getProcessingTimeService.getCurrentProcessingTime+triggerPeriod, this)
         }
-      }, 0, triggerPeriod)
+      }
+
+      cb.onProcessingTime(0L)
     }
   }
 
@@ -195,6 +205,7 @@ class MultiJoinProcessorOperator(
     // moves records from time store to delta store
     // set watermark for emitting later!
     else if (trigger == Trigger.PERIODIC_TRIGGER && isEventTime) {
+
       // pre-process watermark for all cells
       cellJoin.insertWatermark(mark.getTimestamp)
 

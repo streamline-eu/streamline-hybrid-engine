@@ -33,12 +33,10 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sinks.CsvTableSink;
-import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -163,64 +161,52 @@ public class Queries {
 			int seconds, boolean isRowtime, boolean useStatistics, int trigger, long triggerPeriod, int nodes, int edges,
 			boolean skewed) {
 
-		final CustomCsvTableSource stackoverflow = CustomCsvTableSource.builder()
-				.path(inPath + "/stackoverflow")
+		final CustomCsvTableSource edgesTableSource = CustomCsvTableSource.builder()
+				.path(inPath + "/edges")
 				.fieldDelimiter("|")
 				.field("ts", Types.LONG())
-				.field("u1", Types.INT())
-				.field("u2", Types.INT())
+				.field("src", Types.INT())
+				.field("dst", Types.INT())
 				.build();
-		stackoverflow.setOutOfOrder(seconds, TimeUnit.SECONDS);
-		stackoverflow.setTimePrefix("");
+		edgesTableSource.setOutOfOrder(seconds, TimeUnit.SECONDS);
+		edgesTableSource.setTimePrefix("");
 
 		if (useStatistics && !skewed) {
 			Map<String, ColumnStats> columnStats = new HashMap<>();
 			// number of distinct values = nodes
-			columnStats.put("u1", new ColumnStats((long) nodes, null, null, null, null, null, false));
-			columnStats.put("u2", new ColumnStats((long) nodes, null, null, null, null, null, false));
+			columnStats.put("src", new ColumnStats((long) nodes, null, null, null, null, null, false));
+			columnStats.put("dst", new ColumnStats((long) nodes, null, null, null, null, null, false));
 			// number of rows = edges
 			TableStats stats = new TableStats((long) edges, columnStats);
-			tenv.registerTableSource("so", stackoverflow, stats);
+			tenv.registerTableSource("edges", edgesTableSource, stats);
 		} else if (useStatistics) { // skewed
 
 			// no non-skewed key, might not work
 
 			Map<String, ColumnStats> columnStats = new HashMap<>();
 			// number of distinct values = nodes
-			columnStats.put("u1", new ColumnStats((long) nodes, null, null, null, null, null, true)); // skewed
-			columnStats.put("u2", new ColumnStats((long) nodes, null, null, null, null, null, true)); // skewed
+			columnStats.put("src", new ColumnStats((long) nodes, null, null, null, null, null, true)); // skewed
+			columnStats.put("dst", new ColumnStats((long) nodes, null, null, null, null, null, true)); // skewed
 			// number of rows = edges
 			TableStats stats = new TableStats((long) edges, columnStats);
-			tenv.registerTableSource("so", stackoverflow, stats);
+			tenv.registerTableSource("edges", edgesTableSource, stats);
 		} else {
-			tenv.registerTableSource("so", stackoverflow);
+			tenv.registerTableSource("edges", edgesTableSource);
 		}
 
 		final Table t;
 		if (isRowtime) {
 			t = tenv.sql(
-					// 4-Clique (x, y, z, w)
-					"SELECT R.u1, R.u2, Q.u1, Q.u2" +
-					"FROM so AS R, so AS S, so AS T, so AS U, so AS V, so AS Q " +
-					"WHERE " +
-					// R(x,y), S(y,z), T(x,z), U(x,w), V(y,w), Q(z,w)
-					"  R.u1 = T.u1 AND U.u1 = R.u1 AND " + // x
-					"  R.u2 = S.u1 AND V.u1 = R.u2 AND " + // y
-					"  S.u2 = T.u2 AND Q.u1 = S.u2 AND " + // z
-					"  U.u2 = V.u2 AND Q.u2 = U.u2 AND " + // w
-					"  JOINED_TIME(R.rowtime, S.rowtime, T.rowtime, U.rowtime, V.rowtime, Q.rowtime)");
+					"SELECT R.src, R.dst, T.src " +
+					"FROM edges AS R, edges AS S, edges AS T " +
+					"WHERE R.dst = S.src AND S.dst = T.src AND T.dst = R.src AND" +
+					"  JOINED_TIME(R.rowtime, S.rowtime, T.rowtime)");
 		} else {
 			t = tenv.sql(
-					// 4-Clique (x, y, z, w)
-					"SELECT R.u1, R.u2, Q.u1, Q.u2" +
-					"FROM so AS R, so AS S, so AS T, so AS U, so AS V, so AS Q " +
-					"WHERE " +
-					// R(x,y), S(y,z), T(x,z), U(x,w), V(y,w), Q(z,w)
-					"  R.u1 = T.u1 AND U.u1 = R.u1 AND " + // x
-					"  R.u2 = S.u1 AND V.u1 = R.u2 AND " + // y
-					"  S.u2 = T.u2 AND Q.u1 = S.u2 AND " + // z
-					"  U.u2 = V.u2 AND Q.u2 = U.u2 AND " + // w
-					"  JOINED_TIME(R.proctime, S.proctime, T.proctime, U.proctime, V.proctime, Q.proctime)");
+					"SELECT R.src, R.dst, T.src " +
+					"FROM edges AS R, edges AS S, edges AS T " +
+					"WHERE R.dst = S.src AND S.dst = T.src AND T.dst = R.src AND" +
+					"  JOINED_TIME(R.proctime, S.proctime, T.proctime)");
 		}
 		final StreamQueryConfig conf;
 		if (trigger == 0) {
@@ -444,7 +430,7 @@ public class Queries {
 				.field("s_comment", Types.STRING())
 				.build();
 		supplier.setRowtime(isRowtime);
-		supplier.setOutOfOrder(-1, null);
+		supplier.setOutOfOrder(days, TimeUnit.DAYS);
 		supplier.setTimePrefix("s_");
 
 		final CustomCsvTableSource nation = CustomCsvTableSource.builder()
@@ -457,7 +443,7 @@ public class Queries {
 				.field("n_comment", Types.STRING())
 				.build();
 		nation.setRowtime(isRowtime);
-		nation.setOutOfOrder(-1, null);
+		nation.setOutOfOrder(days, TimeUnit.DAYS);
 		nation.setTimePrefix("n_");
 
 		final CustomCsvTableSource region = CustomCsvTableSource.builder()
@@ -469,7 +455,7 @@ public class Queries {
 				.field("r_comment", Types.STRING())
 				.build();
 		region.setRowtime(isRowtime);
-		region.setOutOfOrder(-1, null);
+		region.setOutOfOrder(days, TimeUnit.DAYS);
 		region.setTimePrefix("r_");
 
 		if (useStatistics && !skewed) {
@@ -652,7 +638,7 @@ public class Queries {
 			if (ignoreAggregation) {
 				// we skip sorting as it would limit the parallelism to 1
 				t = tenv.sql(
-					"SELECT c_custkey, o_custkey, o_orderkey, l_orderkey, l_suppkey, s_suppkey, s_nationkey, n_nationkey, n_regionkey, r_regionkey " +
+					"SELECT n_name, l_extendedprice * (1 - l_discount) AS revenue " +
 					"FROM customer, orders, lineitem, supplier, nation, region " +
 					"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
 					"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +

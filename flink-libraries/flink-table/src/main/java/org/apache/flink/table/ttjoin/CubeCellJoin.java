@@ -1151,7 +1151,12 @@ public final class CubeCellJoin {
 					emitCartesianProduct(level + 1);
 				}
 			} else {
-				final long overallKeyMultiplicity = (Long) navigator.value();
+				final long overallKeyMultiplicity;
+				try {
+					overallKeyMultiplicity = (Long) navigator.value();
+				} catch (Throwable t) {
+					throw new Exception();
+				}
 				for (long j = 0; j < overallKeyMultiplicity; ++j) {
 					if (level == structureState.length - 1) {
 						emitRecord();

@@ -577,6 +577,7 @@ public class RocksDBSortedMapState<K, N, UK, UV>
 		public void reset() {
 			if (iterator != null) {
 				iterator.close();
+				iterator = null;
 			}
 
 			currentKey = null;

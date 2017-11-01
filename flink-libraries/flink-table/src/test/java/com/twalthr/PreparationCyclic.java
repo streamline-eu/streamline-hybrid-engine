@@ -4,6 +4,7 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.Types;
@@ -19,6 +20,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
+
 public class PreparationCyclic {
 
 	public static void main(String[] args) throws Exception {
@@ -26,9 +29,9 @@ public class PreparationCyclic {
 		final int seconds;
 		final String outPath;
 		if (args.length == 0) {
-			inPath = "/Users/twalthr/flink/data/mt/Stackoverflow/in/split";
+			inPath = "/Users/twalthr/flink/data/mt/livejournal/in/smaller";
 			seconds = 2;
-			outPath = "/Users/twalthr/flink/data/mt/Stackoverflow/prepared";
+			outPath = "/Users/twalthr/flink/data/mt/livejournal/prepared";
 		} else {
 			inPath = args[0];
 			seconds = Integer.parseInt(args[1]);
@@ -36,33 +39,39 @@ public class PreparationCyclic {
 		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+		//env.setParallelism(1);
 		BatchTableEnvironment tenv = new BatchTableEnvironment(env, TableConfig.DEFAULT());
 
 		{
-			final CsvTableSource stackoverflow = CsvTableSource.builder()
-					.path(inPath + "/sx-stackoverflow.txt")
-					.fieldDelimiter(" ")
+			final CsvTableSource edges = CsvTableSource.builder()
+					.path(inPath + "/lj")
+					.commentPrefix("#")
+					.fieldDelimiter("\t")
 					.field("src", Types.INT())
 					.field("dst", Types.INT())
-					.field("ts", Types.LONG())
 					.build();
 
-			tenv.registerTableSource("stackoverflow", stackoverflow);
+			tenv.registerTableSource("edges", edges);
 		}
 
-		Table ts = tenv.sql(
-				"SELECT ts, CASE WHEN src > dst THEN dst ELSE src END, CASE WHEN src > dst THEN src ELSE dst END " +
-				"FROM stackoverflow " +
+		// converted
+		Table converted = tenv.sql(
+				"SELECT CAST(RAND_INTEGER(100000000) AS BIGINT) AS ts, src, dst " +
+				"FROM edges " +
+				"WHERE NOT src = dst " +
 				"ORDER BY ts");
 
-		DataSet<Row> stackoverflowDataSet = tenv.toDataSet(ts, Row.class);
+		DataSet<Row> edgesDataSet = tenv.toDataSet(converted, Row.class);
 
-		Table stackoverflowTable = tenv.fromDataSet(
-				stackoverflowDataSet.mapPartition(new OutOfOrderFunction<>(seconds)),
+		Table edgesTable = tenv.fromDataSet(
+				edgesDataSet.mapPartition(new OutOfOrderFunction<>(seconds)),
 				"ts, src, dst");
 
-		stackoverflowTable.writeToSink(new CsvTableSink(outPath + "/stackoverflow", "|"));
+		Option<String> del = Option.<String>apply("|");
+		Option<Object> numFile = Option.<Object>apply(null);
+		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
+
+		edgesTable.writeToSink(new CsvTableSink(outPath + "/edges", del, numFile, mode));
 
 		env.execute();
 	}

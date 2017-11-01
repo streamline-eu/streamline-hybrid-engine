@@ -97,6 +97,11 @@ class MultiJoinPreprocessorOperator(
       i += 1
     }
 
+    // R
+    if (joinRecord.tableIdx == 0 && joinRecord.row.getField(0).asInstanceOf[Int] == 299154) {
+      println()
+    }
+
     // determine target cube group coordinates
     val coords = pos.coords
 

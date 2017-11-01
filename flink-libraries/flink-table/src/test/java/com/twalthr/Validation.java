@@ -8,29 +8,20 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.scala.DataStream;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.Trigger;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.plan.stats.ColumnStats;
-import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import scala.Option;
 
-public class ValidationSimpleAndMany {
+public class Validation {
 
 	public static void main(String[] args) throws Exception {
 		final String query;
@@ -65,6 +56,10 @@ public class ValidationSimpleAndMany {
 
 			case "many":
 				validateMany(tenv, inPath, outPath, validatePath);
+				break;
+
+			case "cyclic":
+				validateCyclic(tenv, inPath, outPath, validatePath);
 				break;
 
 			default:
@@ -245,19 +240,55 @@ public class ValidationSimpleAndMany {
 		tenv.registerTable("region", regionTable);
 
 		final Table expected = tenv.sql(
-			"SELECT c_custkey, o_custkey, o_orderkey, l_orderkey, l_suppkey, s_suppkey, s_nationkey, n_nationkey, n_regionkey, r_regionkey " +
+			"SELECT n_name, l_extendedprice * (1 - l_discount) AS revenue " +
 			"FROM customer, orders, lineitem, supplier, nation, region " +
 			"WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND " +
 			"  c_nationkey = s_nationkey AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND " +
 			"  r_name = 'ASIA' AND o_orderdate >= DATE '1994-01-01' AND o_orderdate < DATE '1994-01-01' + INTERVAL '1' YEAR");
 		writeToSink(expected, validatePath + "/many_expected");
 
+		// actual
+		final CsvTableSource actualSource = CsvTableSource.builder()
+				.path(outPath + "/many_result")
+				.fieldDelimiter("|")
+				.field("n_name", Types.STRING())
+				.field("revenue", Types.DOUBLE())
+				.build();
+		tenv.registerTableSource("actual", actualSource);
+		final Table actual = tenv.scan("actual");
+
+		// compare
+		compare(tenv, expected, actual, validatePath);
+	}
+
+	private static void validateCyclic(BatchTableEnvironment tenv, String inPath, String outPath, String validatePath) {
+
+		// expected
+		final CsvTableSource edges = CsvTableSource.builder()
+				.path(inPath + "/edges")
+				.fieldDelimiter("|")
+				.field("ts", Types.LONG())
+				.field("src", Types.INT())
+				.field("dst", Types.INT())
+				.build();
+		tenv.registerTableSource("outOfOrderEdges", edges);
+
+		final Table edgesTable = tenv.sql("SELECT * FROM outOfOrderEdges ORDER BY ts");
+		tenv.registerTable("edges", edgesTable);
+
+		final Table expected = tenv.sql(
+			"SELECT R.src, R.dst, T.src " +
+			"FROM edges AS R, edges AS S, edges AS T " +
+			"WHERE R.dst = S.src AND S.dst = T.src AND T.dst = R.src");
+		writeToSink(expected, validatePath + "/cyclic_expected");
+
 //		// actual
 //		final CsvTableSource actualSource = CsvTableSource.builder()
-//				.path(outPath + "/many_result")
+//				.path(outPath + "/cyclic_result")
 //				.fieldDelimiter("|")
-//				.field("n_name", Types.STRING())
-//				.field("revenue", Types.DOUBLE())
+//				.field("Rsrc", Types.INT())
+//				.field("Rdst", Types.INT())
+//				.field("Tsrc", Types.INT())
 //				.build();
 //		tenv.registerTableSource("actual", actualSource);
 //		final Table actual = tenv.scan("actual");
