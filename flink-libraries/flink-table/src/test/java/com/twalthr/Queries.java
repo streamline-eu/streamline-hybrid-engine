@@ -69,6 +69,9 @@ public class Queries {
 		final int edges;
 		final boolean skewed;
 		final boolean ignoreAggregation;
+		final long servingSpeed;
+		final long delay;
+		final boolean realSink;
 		if (args.length == 0) {
 			query = "simple";
 			maxParallelism = 4;
@@ -90,6 +93,9 @@ public class Queries {
 			edges = 100000;
 			skewed = false;
 			ignoreAggregation = true;
+			servingSpeed = 5;
+			delay = 100;
+			realSink = false;
 		} else {
 			query = args[0];
 			maxParallelism = Integer.parseInt(args[1]);
@@ -111,18 +117,21 @@ public class Queries {
 			edges = Integer.parseInt(args[17]);
 			skewed = Boolean.parseBoolean(args[18]);
 			ignoreAggregation = Boolean.parseBoolean(args[19]);
+			servingSpeed = Long.parseLong(args[20]);
+			delay = Long.parseLong(args[21]);
+			realSink = false;
 		}
 
 		run(query, maxParallelism, parallelism, isRowtime, useStatistics, trigger, triggerPeriod,
 			isHeap, async, inc, checkpointPath, inPath, outPath, days, dataFactor, seconds, nodes, edges,
-			skewed, ignoreAggregation);
+			skewed, ignoreAggregation, servingSpeed, delay, realSink);
 	}
 
 	public static void run(
 			String query, int maxParallelism, int parallelism, boolean isRowtime, boolean useStatistics,
 			int trigger, long triggerPeriod, boolean isHeap, boolean async, boolean inc, String checkpointPath,
 			String inPath, String outPath, int days, double dataFactor, int seconds, int nodes, int edges,
-			boolean skewed, boolean ignoreAggregation) throws Exception {
+			boolean skewed, boolean ignoreAggregation, long servingSpeed, long delay, boolean realSink) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		if (isRowtime) {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -139,15 +148,15 @@ public class Queries {
 
 		switch (query) {
 			case "simple":
-				runSimple(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed);
+				runSimple(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed, servingSpeed, realSink);
 				break;
 
 			case "cyclic":
-				runCyclic(tenv, inPath, outPath, seconds, isRowtime, useStatistics, trigger, triggerPeriod, nodes, edges, skewed);
+				runCyclic(tenv, inPath, outPath, seconds, isRowtime, useStatistics, trigger, triggerPeriod, nodes, edges, skewed, servingSpeed, realSink);
 				break;
 
 			case "many":
-				runMany(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed, ignoreAggregation);
+				runMany(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed, ignoreAggregation, servingSpeed, delay, realSink);
 				break;
 
 			default:
@@ -159,15 +168,16 @@ public class Queries {
 
 	private static void runCyclic(StreamTableEnvironment tenv, String inPath, String outPath,
 			int seconds, boolean isRowtime, boolean useStatistics, int trigger, long triggerPeriod, int nodes, int edges,
-			boolean skewed) {
+			boolean skewed, long servingSpeed, boolean realSink) {
 
 		final CustomCsvTableSource edgesTableSource = CustomCsvTableSource.builder()
-				.path(inPath + "/edges")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("ts", Types.LONG())
 				.field("src", Types.INT())
 				.field("dst", Types.INT())
 				.build();
+		edgesTableSource.setTableName("edges");
+		edgesTableSource.setServingSpeed(servingSpeed);
 		edgesTableSource.setOutOfOrder(seconds, TimeUnit.SECONDS);
 		edgesTableSource.setTimePrefix("");
 
@@ -223,20 +233,23 @@ public class Queries {
 		Option<Object> numFile = Option.<Object>apply(null);
 		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
 
-		t.writeToSink(new CsvTableSink(
-			outPath + "/cyclic_result",
-			del,
-			numFile,
-			mode), conf);
+		if (realSink) {
+			t.writeToSink(new CsvTableSink(
+				outPath + "/cyclic_result",
+				del,
+				numFile,
+				mode), conf);
+		} else {
+			t.writeToSink(new CustomTableSink("cyclic", outPath + "/cyclic_result"));
+		}
 	}
 
 	public static void runSimple(StreamTableEnvironment tenv, String inPath, String outPath,
 			int days, boolean isRowtime, boolean useStatistics, int trigger, long triggerPeriod, double dataFactor,
-			boolean skewed) {
+			boolean skewed, long servingSpeed, boolean realSink) {
 
 		final CustomCsvTableSource customer = CustomCsvTableSource.builder()
-				.path(inPath + "/customer")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("c_ts", Types.LONG())
 				.field("c_custkey", Types.INT())
 				.field("c_name", Types.STRING())
@@ -247,13 +260,14 @@ public class Queries {
 				.field("c_mktsegment", Types.STRING())
 				.field("c_comment", Types.STRING())
 				.build();
+		customer.setTableName("customer");
+		customer.setServingSpeed(servingSpeed);
 		customer.setRowtime(isRowtime);
 		customer.setOutOfOrder(days, TimeUnit.DAYS);
 		customer.setTimePrefix("c_");
 
 		final CustomCsvTableSource orders = CustomCsvTableSource.builder()
-				.path(inPath + "/orders")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("o_ts", Types.LONG())
 				.field("o_orderkey", Types.INT())
 				.field("o_custkey", Types.INT())
@@ -265,6 +279,8 @@ public class Queries {
 				.field("o_shippriority", Types.INT())
 				.field("o_comment", Types.STRING())
 				.build();
+		orders.setTableName("orders");
+		orders.setServingSpeed(servingSpeed);
 		orders.setRowtime(isRowtime);
 		orders.setOutOfOrder(days, TimeUnit.DAYS);
 		orders.setTimePrefix("o_");
@@ -346,20 +362,23 @@ public class Queries {
 		Option<Object> numFile = Option.<Object>apply(null);
 		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
 
-		t.writeToSink(new CsvTableSink(
-			outPath + "/simple_result",
-			del,
-			numFile,
-			mode), conf);
+		if (realSink) {
+			t.writeToSink(new CsvTableSink(
+				outPath + "/simple_result",
+				del,
+				numFile,
+				mode), conf);
+		} else {
+			t.writeToSink(new CustomTableSink("simple", outPath + "/simple_result"));
+		}
 	}
 
 	public static void runMany(StreamTableEnvironment tenv, String inPath, String outPath,
 			int days, boolean isRowtime, boolean useStatistics, int trigger, long triggerPeriod, double dataFactor,
-			boolean skewed, boolean ignoreAggregation) {
+			boolean skewed, boolean ignoreAggregation, long servingSpeed, long delay, boolean realSink) {
 
 		final CustomCsvTableSource customer = CustomCsvTableSource.builder()
-				.path(inPath + "/customer")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("c_ts", Types.LONG())
 				.field("c_custkey", Types.INT())
 				.field("c_name", Types.STRING())
@@ -370,13 +389,15 @@ public class Queries {
 				.field("c_mktsegment", Types.STRING())
 				.field("c_comment", Types.STRING())
 				.build();
+		customer.setTableName("customer");
+		customer.setServingSpeed(servingSpeed);
+		customer.setDelay(delay);
 		customer.setRowtime(isRowtime);
 		customer.setOutOfOrder(days, TimeUnit.DAYS);
 		customer.setTimePrefix("c_");
 
 		final CustomCsvTableSource orders = CustomCsvTableSource.builder()
-				.path(inPath + "/orders")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("o_ts", Types.LONG())
 				.field("o_orderkey", Types.INT())
 				.field("o_custkey", Types.INT())
@@ -388,13 +409,15 @@ public class Queries {
 				.field("o_shippriority", Types.INT())
 				.field("o_comment", Types.STRING())
 				.build();
+		orders.setTableName("orders");
+		orders.setServingSpeed(servingSpeed);
+		orders.setDelay(delay);
 		orders.setRowtime(isRowtime);
 		orders.setOutOfOrder(days, TimeUnit.DAYS);
 		orders.setTimePrefix("o_");
 
 		final CustomCsvTableSource lineitem = CustomCsvTableSource.builder()
-				.path(inPath + "/lineitem")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("l_ts", Types.LONG())
 				.field("l_orderkey", Types.INT())
 				.field("l_partkey", Types.INT())
@@ -413,13 +436,15 @@ public class Queries {
 				.field("l_shipmode", Types.STRING())
 				.field("l_comment", Types.STRING())
 				.build();
+		lineitem.setTableName("lineitem");
+		lineitem.setServingSpeed(servingSpeed);
+		lineitem.setDelay(delay);
 		lineitem.setRowtime(isRowtime);
 		lineitem.setOutOfOrder(days, TimeUnit.DAYS);
 		lineitem.setTimePrefix("l_");
 
 		final CustomCsvTableSource supplier = CustomCsvTableSource.builder()
-				.path(inPath + "/supplier")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("s_ts", Types.LONG())
 				.field("s_suppkey", Types.INT())
 				.field("s_name", Types.STRING())
@@ -429,31 +454,38 @@ public class Queries {
 				.field("s_acctbal", Types.DOUBLE())
 				.field("s_comment", Types.STRING())
 				.build();
+		supplier.setTableName("supplier");
+		supplier.setServingSpeed(servingSpeed);
+		supplier.setDelay(0);
 		supplier.setRowtime(isRowtime);
 		supplier.setOutOfOrder(days, TimeUnit.DAYS);
 		supplier.setTimePrefix("s_");
 
 		final CustomCsvTableSource nation = CustomCsvTableSource.builder()
-				.path(inPath + "/nation")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("n_ts", Types.LONG())
 				.field("n_nationkey", Types.INT())
 				.field("n_name", Types.STRING())
 				.field("n_regionkey", Types.INT())
 				.field("n_comment", Types.STRING())
 				.build();
+		nation.setTableName("nation");
+		nation.setServingSpeed(servingSpeed);
+		nation.setDelay(0);
 		nation.setRowtime(isRowtime);
 		nation.setOutOfOrder(days, TimeUnit.DAYS);
 		nation.setTimePrefix("n_");
 
 		final CustomCsvTableSource region = CustomCsvTableSource.builder()
-				.path(inPath + "/region")
-				.fieldDelimiter("|")
+				.path(inPath)
 				.field("r_ts", Types.LONG())
 				.field("r_regionkey", Types.INT())
 				.field("r_name", Types.STRING())
 				.field("r_comment", Types.STRING())
 				.build();
+		region.setTableName("region");
+		region.setServingSpeed(servingSpeed);
+		region.setDelay(0);
 		region.setRowtime(isRowtime);
 		region.setOutOfOrder(days, TimeUnit.DAYS);
 		region.setTimePrefix("r_");
@@ -674,14 +706,18 @@ public class Queries {
 		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
 
 		if (ignoreAggregation) {
-			t.writeToSink(new CsvTableSink(
-				outPath + "/many_result",
-				del,
-				numFile,
-				mode), conf);
+			if (realSink) {
+				t.writeToSink(new CsvTableSink(
+					outPath + "/many_result",
+					del,
+					numFile,
+					mode), conf);
+			} else {
+				t.writeToSink(new CustomTableSink("many", outPath + "/many_result"));
+			}
 		}
 		else {
-			// TODO
+			t.writeToSink(new CustomTableSink("many", outPath + "/many_result"));
 		}
 	}
 }

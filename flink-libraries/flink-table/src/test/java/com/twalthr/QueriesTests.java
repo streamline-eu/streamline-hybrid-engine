@@ -30,7 +30,7 @@ public class QueriesTests {
 	public void testSimpleStreamHeapPara1() throws Exception {
 		Queries.run("simple", 1, 1, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, false);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -41,7 +41,7 @@ public class QueriesTests {
 	public void testSimpleStreamHeapPara8() throws Exception {
 		Queries.run("simple", 8, 8, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -52,7 +52,7 @@ public class QueriesTests {
 	public void testSimpleStreamHeapPara1WithMax16() throws Exception {
 		Queries.run("simple", 16, 1, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -63,7 +63,7 @@ public class QueriesTests {
 	public void testSimpleStreamHeapPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -74,7 +74,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkHeapPara1() throws Exception {
 		Queries.run("simple", 1, 1, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -85,7 +85,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkHeapPara8() throws Exception {
 		Queries.run("simple", 8, 8, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -96,7 +96,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkHeapPara1WithMax16() throws Exception {
 		Queries.run("simple", 16, 1, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -107,7 +107,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkHeapPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -118,7 +118,7 @@ public class QueriesTests {
 	public void testSimplePeriodicProctimeHeapPara1() throws Exception {
 		Queries.run("simple", 1, 1, false, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -129,7 +129,7 @@ public class QueriesTests {
 	public void testSimplePeriodicProctimeHeapPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, false, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -140,7 +140,7 @@ public class QueriesTests {
 	public void testSimplePeriodicRowtimeHeapPara1() throws Exception {
 		Queries.run("simple", 1, 1, true, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -151,7 +151,7 @@ public class QueriesTests {
 	public void testSimplePeriodicRowtimeHeapPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, true, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -166,7 +166,7 @@ public class QueriesTests {
 	public void testSimpleStreamRocksPara1() throws Exception {
 		Queries.run("simple", 1, 1, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -177,7 +177,7 @@ public class QueriesTests {
 	public void testSimpleStreamRocksPara8() throws Exception {
 		Queries.run("simple", 8, 8, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -188,7 +188,7 @@ public class QueriesTests {
 	public void testSimpleStreamRocksPara1WithMax16() throws Exception {
 		Queries.run("simple", 16, 1, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -199,7 +199,7 @@ public class QueriesTests {
 	public void testSimpleStreamRocksPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -210,7 +210,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkRocksPara1() throws Exception {
 		Queries.run("simple", 1, 1, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -221,7 +221,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkRocksPara8() throws Exception {
 		Queries.run("simple", 8, 8, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -232,7 +232,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkRocksPara1WithMax16() throws Exception {
 		Queries.run("simple", 16, 1, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -243,7 +243,7 @@ public class QueriesTests {
 	public void testSimpleWatermarkRocksPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -254,7 +254,7 @@ public class QueriesTests {
 	public void testSimplePeriodicProctimeRocksPara1() throws Exception {
 		Queries.run("simple", 1, 1, false, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -265,7 +265,7 @@ public class QueriesTests {
 	public void testSimplePeriodicProctimeRocksPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, false, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -276,7 +276,7 @@ public class QueriesTests {
 	public void testSimplePeriodicRowtimeRocksPara1() throws Exception {
 		Queries.run("simple", 1, 1, true, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -287,7 +287,7 @@ public class QueriesTests {
 	public void testSimplePeriodicRowtimeRocksPara8WithMax16() throws Exception {
 		Queries.run("simple", 16, 8, true, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",
@@ -302,7 +302,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamHeapPara1() throws Exception {
 		Queries.run("many", 1, 1, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -313,7 +313,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamHeapPara8() throws Exception {
 		Queries.run("many", 8, 8, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -324,7 +324,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamHeapPara1WithMax16() throws Exception {
 		Queries.run("many", 16, 1, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -335,7 +335,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamHeapPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -346,7 +346,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkHeapPara1() throws Exception {
 		Queries.run("many", 1, 1, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -357,7 +357,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkHeapPara8() throws Exception {
 		Queries.run("many", 8, 8, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -368,7 +368,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkHeapPara1WithMax16() throws Exception {
 		Queries.run("many", 16, 1, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -379,7 +379,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkHeapPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, true, true, 1, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -390,7 +390,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicProctimeHeapPara1() throws Exception {
 		Queries.run("many", 1, 1, false, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -401,7 +401,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicProctimeHeapPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, false, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -412,7 +412,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicRowtimeHeapPara1() throws Exception {
 		Queries.run("many", 1, 1, true, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -423,7 +423,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicRowtimeHeapPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, true, true, 2, 100L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -438,7 +438,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamRocksPara1() throws Exception {
 		Queries.run("many", 1, 1, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -449,7 +449,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamRocksPara8() throws Exception {
 		Queries.run("many", 8, 8, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -460,7 +460,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamRocksPara1WithMax16() throws Exception {
 		Queries.run("many", 16, 1, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -471,7 +471,7 @@ public class QueriesTests {
 	public void testManyNoAggStreamRocksPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, false, true, 0, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -482,7 +482,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkRocksPara1() throws Exception {
 		Queries.run("many", 1, 1, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -493,7 +493,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkRocksPara8() throws Exception {
 		Queries.run("many", 8, 8, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -504,7 +504,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkRocksPara1WithMax16() throws Exception {
 		Queries.run("many", 16, 1, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -515,7 +515,7 @@ public class QueriesTests {
 	public void testManyNoAggWatermarkRocksPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, true, true, 1, 0L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -526,7 +526,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicProctimeRocksPara1() throws Exception {
 		Queries.run("many", 1, 1, false, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -537,7 +537,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicProctimeRocksPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, false, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -548,7 +548,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicRowtimeRocksPara1() throws Exception {
 		Queries.run("many", 1, 1, true, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -559,7 +559,7 @@ public class QueriesTests {
 	public void testManyNoAggPeriodicRowtimeRocksPara8WithMax16() throws Exception {
 		Queries.run("many", 16, 8, true, true, 2, 100L, false, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/S01/prepared", "/Users/twalthr/flink/data/mt/S01/result",
-			10, 0.01, -1, -1, -1, false, true);
+			10, 0.01, -1, -1, -1, false, true, 0, 0, true);
 		Validation.run("many",
 			"/Users/twalthr/flink/data/mt/S01/prepared",
 			"/Users/twalthr/flink/data/mt/S01/result",
@@ -574,7 +574,7 @@ public class QueriesTests {
 	public void testCyclicStreamHeapPara1() throws Exception {
 		Queries.run("cyclic", 1, 1, false, true, 2, 5000L, true, true, true, "file:///Users/twalthr/flink/tmp/checkpoints",
 			"/Users/twalthr/flink/data/mt/livejournal/prepared", "/Users/twalthr/flink/data/mt/livejournal/result",
-			-1, -1, 4, 10000, 9925143, false, false);
+			-1, -1, 4, 10000, 9925143, false, false, 0, 0, true);
 //		Validation.run("cyclic",
 //			"/Users/twalthr/flink/data/mt/livejournal/prepared",
 //			"/Users/twalthr/flink/data/mt/livejournal/result",

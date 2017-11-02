@@ -32,8 +32,9 @@ import java.util.Iterator;
 
 public class DataGenerator extends RichParallelSourceFunction<Row> {
 
-	private final Parser parser;
+	private final String table;
 	private final String path;
+	private final long delay;
 	private final long servingSpeed;
 
 	private transient int para;
@@ -43,10 +44,11 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 
 	// each partition must be ordered according to timestamp
 	// it might be slightly out of order
-	public DataGenerator(String table, String path, long servingSpeed) {
+	public DataGenerator(String table, String path, long delay, long servingSpeed) {
 		this.path = path;
+		this.delay = delay;
 		this.servingSpeed = servingSpeed;
-		this.parser = getParser(table);
+		this.table = table;
 	}
 
 	@Override
@@ -57,19 +59,26 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 
 	@Override
 	public void run(SourceContext<Row> ctx) throws Exception {
-		fis = new FileInputStream(path + "/para" + para + "/" + index);
+		final Parser parser = getParser(table);
+		fis = new FileInputStream(path + "/" + table + "/para" + para + "/" + (index + 1));
 		reader = new BufferedReader(new InputStreamReader(fis), 1024 * 1024);
-		final Parser p = parser;
-		final BufferedReader r = reader;
 
-		// read first record
+		if (delay > 0) {
+			Thread.sleep(delay);
+		}
+
+		// read
+		final BufferedReader r = reader;
+		final long sp = servingSpeed;
+
 		String line;
 		Row record;
 		while (r.ready() && (line = r.readLine()) != null) {
-			record = p.parse(line);
+			record = parser.parse(line);
 
-			if (servingSpeed > 0) {
-				Thread.sleep(servingSpeed);
+			if (sp > 0) {
+				final long sleep = (long)(sp * Math.random());
+				Thread.sleep(sleep);
 			}
 
 			ctx.collect(record);
@@ -115,7 +124,7 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 					}
 				};
 
-			case "order":
+			case "orders":
 				return new Parser() {
 					private final Row row = new Row(10);
 					private final Splitter splitter = Splitter.on('|');

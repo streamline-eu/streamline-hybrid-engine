@@ -29,7 +29,7 @@ public class PreparationCyclic {
 		final int seconds;
 		final String outPath;
 		if (args.length == 0) {
-			inPath = "/Users/twalthr/flink/data/mt/livejournal/in/smaller";
+			inPath = "/Users/twalthr/flink/data/mt/livejournal/in/evensmaller";
 			seconds = 2;
 			outPath = "/Users/twalthr/flink/data/mt/livejournal/prepared";
 		} else {

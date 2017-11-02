@@ -35,9 +35,10 @@ public class PreparationSimpleAndMany {
 		final int days;
 		final String outPath;
 		if (args.length == 0) {
-			inPath = "/Users/twalthr/flink/data/mt/S01/in";
+			inPath = "/Volumes/TTDISK/tpchskew/raw/32GB";
 			days = 5;
-			outPath = "/Users/twalthr/flink/data/mt/S01/prepared";
+//			outPath = "/Users/twalthr/flink/data/clusterdata/tpch/8GB/prepared";
+			outPath = "/Volumes/TTDISK/tpchskew/prepared/32GB";
 		} else {
 			inPath = args[0];
 			days = Integer.parseInt(args[1]);
@@ -45,7 +46,7 @@ public class PreparationSimpleAndMany {
 		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		//env.setParallelism(1);
+		env.setParallelism(1);
 		BatchTableEnvironment tenv = new BatchTableEnvironment(env, TableConfig.DEFAULT());
 
 		{
@@ -67,7 +68,7 @@ public class PreparationSimpleAndMany {
 
 		{
 			final TableSource<Row> orders = CsvTableSource.builder()
-					.path(inPath + "/orders.tbl")
+					.path(inPath + "/order.tbl")
 					.fieldDelimiter("|")
 					.field("o_orderkey", Types.INT())
 					.field("o_custkey", Types.INT())
@@ -188,22 +189,22 @@ public class PreparationSimpleAndMany {
 		}
 
 		// write out of order lineitems
-		{
-			Table tl = tenv.sql(
-					"SELECT convTs2(CAST(l_shipdate AS TIMESTAMP), CAST(l_commitdate AS TIMESTAMP), CAST(l_receiptdate AS TIMESTAMP), CAST(o_orderdate AS TIMESTAMP)) AS l_ts, " +
-					"  l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment " +
-					"FROM lineitem LEFT JOIN orders ON l_orderkey = o_orderkey " +
-					"ORDER BY l_ts");
-
-			DataSet<Row> orderedLineitemDataSet = tenv.toDataSet(tl, Row.class);
-
-			Table orderedLineitemsTable = tenv.fromDataSet(
-					orderedLineitemDataSet.mapPartition(new OutOfOrderFunction<>(days)),
-					"l_ts, l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, " +
-					"l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment");
-
-			writeToSink(orderedLineitemsTable, outPath + "/lineitem");
-		}
+//		{
+//			Table tl = tenv.sql(
+//					"SELECT convTs2(CAST(l_shipdate AS TIMESTAMP), CAST(l_commitdate AS TIMESTAMP), CAST(l_receiptdate AS TIMESTAMP), CAST(o_orderdate AS TIMESTAMP)) AS l_ts, " +
+//					"  l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment " +
+//					"FROM lineitem LEFT JOIN orders ON l_orderkey = o_orderkey " +
+//					"ORDER BY l_ts");
+//
+//			DataSet<Row> orderedLineitemDataSet = tenv.toDataSet(tl, Row.class);
+//
+//			Table orderedLineitemsTable = tenv.fromDataSet(
+//					orderedLineitemDataSet.mapPartition(new OutOfOrderFunction<>(days)),
+//					"l_ts, l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, " +
+//					"l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment");
+//
+//			writeToSink(orderedLineitemsTable, outPath + "/lineitem");
+//		}
 
 		// write suppliers
 		{
