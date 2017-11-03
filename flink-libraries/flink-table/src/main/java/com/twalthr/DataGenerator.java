@@ -219,7 +219,7 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 						row.setField(1, Integer.parseInt(split.next())); // r_regionkey
 						row.setField(2, split.next());                   // r_name
 						row.setField(3, split.next());                   // r_comment
-						return null;
+						return row;
 					}
 				};
 

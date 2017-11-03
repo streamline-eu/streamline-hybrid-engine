@@ -189,22 +189,22 @@ public class PreparationSimpleAndMany {
 		}
 
 		// write out of order lineitems
-//		{
-//			Table tl = tenv.sql(
-//					"SELECT convTs2(CAST(l_shipdate AS TIMESTAMP), CAST(l_commitdate AS TIMESTAMP), CAST(l_receiptdate AS TIMESTAMP), CAST(o_orderdate AS TIMESTAMP)) AS l_ts, " +
-//					"  l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment " +
-//					"FROM lineitem LEFT JOIN orders ON l_orderkey = o_orderkey " +
-//					"ORDER BY l_ts");
-//
-//			DataSet<Row> orderedLineitemDataSet = tenv.toDataSet(tl, Row.class);
-//
-//			Table orderedLineitemsTable = tenv.fromDataSet(
-//					orderedLineitemDataSet.mapPartition(new OutOfOrderFunction<>(days)),
-//					"l_ts, l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, " +
-//					"l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment");
-//
-//			writeToSink(orderedLineitemsTable, outPath + "/lineitem");
-//		}
+		{
+			Table tl = tenv.sql(
+					"SELECT convTs2(CAST(l_shipdate AS TIMESTAMP), CAST(l_commitdate AS TIMESTAMP), CAST(l_receiptdate AS TIMESTAMP), CAST(o_orderdate AS TIMESTAMP)) AS l_ts, " +
+					"  l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment " +
+					"FROM lineitem LEFT JOIN orders ON l_orderkey = o_orderkey " +
+					"ORDER BY l_ts");
+
+			DataSet<Row> orderedLineitemDataSet = tenv.toDataSet(tl, Row.class);
+
+			Table orderedLineitemsTable = tenv.fromDataSet(
+					orderedLineitemDataSet.mapPartition(new OutOfOrderFunction<>(days)),
+					"l_ts, l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, " +
+					"l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment");
+
+			writeToSink(orderedLineitemsTable, outPath + "/lineitem");
+		}
 
 		// write suppliers
 		{

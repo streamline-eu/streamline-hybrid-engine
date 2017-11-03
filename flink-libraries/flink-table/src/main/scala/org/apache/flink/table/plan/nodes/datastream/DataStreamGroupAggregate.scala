@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
+import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
@@ -144,7 +145,7 @@ class DataStreamGroupAggregate(
     // grouped / keyed aggregation
       if (groupings.nonEmpty) {
         inputDS
-        .keyBy(groupings: _*)
+        .keyBy(new CRowKeySelector(groupings, inputSchema.projectedTypeInfo(groupings)))
         .process(processFunction)
         .returns(outRowType)
         .name(keyedAggOpName)

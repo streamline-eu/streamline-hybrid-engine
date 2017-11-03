@@ -641,7 +641,7 @@ public final class CubeCellJoin {
 				// current total order key match
 				// or a previous total order key did not match
 				else {
-					match = nextTotalOrderKey(); // TODO supplier 68 can not be found!!!!!!
+					match = nextTotalOrderKey();
 				}
 			} else {
 				// reset all prefixes that might have overflown

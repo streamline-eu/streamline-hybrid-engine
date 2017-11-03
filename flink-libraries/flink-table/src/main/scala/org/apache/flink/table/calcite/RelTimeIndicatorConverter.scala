@@ -259,8 +259,9 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       set.asList().map(_.asInstanceOf[Int]).foreach(refIndices.add)
     )
 
-    val needsMaterialization = refIndices.exists(idx =>
-      isTimeIndicatorType(input.getRowType.getFieldList.get(idx).getType))
+//    val needsMaterialization = refIndices.exists(idx =>
+//      isTimeIndicatorType(input.getRowType.getFieldList.get(idx).getType))
+    val needsMaterialization = false // TODO QUICK FIX
 
     // create project if necessary
     val projectedInput = if (needsMaterialization) {

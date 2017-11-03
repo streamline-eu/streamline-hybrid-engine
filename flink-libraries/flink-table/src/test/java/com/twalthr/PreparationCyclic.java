@@ -29,7 +29,7 @@ public class PreparationCyclic {
 		final int seconds;
 		final String outPath;
 		if (args.length == 0) {
-			inPath = "/Users/twalthr/flink/data/mt/livejournal/in/evensmaller";
+			inPath = "/Users/twalthr/flink/data/mt/livejournal/in";
 			seconds = 2;
 			outPath = "/Users/twalthr/flink/data/mt/livejournal/prepared";
 		} else {
@@ -39,7 +39,7 @@ public class PreparationCyclic {
 		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		//env.setParallelism(1);
+		env.setParallelism(1);
 		BatchTableEnvironment tenv = new BatchTableEnvironment(env, TableConfig.DEFAULT());
 
 		{

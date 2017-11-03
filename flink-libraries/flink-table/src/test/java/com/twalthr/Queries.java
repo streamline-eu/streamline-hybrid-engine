@@ -33,6 +33,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sinks.CsvTableSink;
+import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,9 +74,9 @@ public class Queries {
 		final long delay;
 		final boolean realSink;
 		if (args.length == 0) {
-			query = "simple";
-			maxParallelism = 4;
-			parallelism = 4;
+			query = "bounded";
+			maxParallelism = 1;
+			parallelism = 1;
 			isRowtime = true;
 			useStatistics = true;
 			trigger = 1;
@@ -95,7 +96,7 @@ public class Queries {
 			ignoreAggregation = true;
 			servingSpeed = 5;
 			delay = 100;
-			realSink = false;
+			realSink = true;
 		} else {
 			query = args[0];
 			maxParallelism = Integer.parseInt(args[1]);
@@ -149,6 +150,10 @@ public class Queries {
 		switch (query) {
 			case "simple":
 				runSimple(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed, servingSpeed, realSink);
+				break;
+
+			case "bounded":
+				runBounded(tenv, inPath, outPath, days, isRowtime, useStatistics, trigger, triggerPeriod, dataFactor, skewed, ignoreAggregation, servingSpeed, delay, realSink);
 				break;
 
 			case "cyclic":
@@ -712,6 +717,306 @@ public class Queries {
 					del,
 					numFile,
 					mode), conf);
+			} else {
+				t.writeToSink(new CustomTableSink("many", outPath + "/many_result"));
+			}
+		}
+		else {
+			t.writeToSink(new CustomTableSink("many", outPath + "/many_result"));
+		}
+	}
+
+	public static void runBounded(StreamTableEnvironment tenv, String inPath, String outPath,
+			int days, boolean isRowtime, boolean useStatistics, int trigger, long triggerPeriod, double dataFactor,
+			boolean skewed, boolean ignoreAggregation, long servingSpeed, long delay, boolean realSink) {
+
+		final CustomCsvTableSource customer = CustomCsvTableSource.builder()
+				.path(inPath)
+				.field("c_ts", Types.LONG())
+				.field("c_custkey", Types.INT())
+				.field("c_name", Types.STRING())
+				.field("c_address", Types.STRING())
+				.field("c_nationkey", Types.INT())
+				.field("c_phone", Types.STRING())
+				.field("c_acctbal", Types.DOUBLE())
+				.field("c_mktsegment", Types.STRING())
+				.field("c_comment", Types.STRING())
+				.build();
+		customer.setTableName("customer");
+		customer.setServingSpeed(servingSpeed);
+		customer.setDelay(delay);
+		customer.setRowtime(isRowtime);
+		customer.setOutOfOrder(days, TimeUnit.DAYS);
+		customer.setTimePrefix("c_");
+
+		final CustomCsvTableSource orders = CustomCsvTableSource.builder()
+				.path(inPath)
+				.field("o_ts", Types.LONG())
+				.field("o_orderkey", Types.INT())
+				.field("o_custkey", Types.INT())
+				.field("o_orderstatus", Types.STRING())
+				.field("o_totalprice", Types.DOUBLE())
+				.field("o_orderdate", Types.STRING())
+				.field("o_orderpriority", Types.STRING())
+				.field("o_clerk", Types.STRING())
+				.field("o_shippriority", Types.INT())
+				.field("o_comment", Types.STRING())
+				.build();
+		orders.setTableName("orders");
+		orders.setServingSpeed(servingSpeed);
+		orders.setDelay(delay);
+		orders.setRowtime(isRowtime);
+		orders.setOutOfOrder(days, TimeUnit.DAYS);
+		orders.setTimePrefix("o_");
+
+		final CustomCsvTableSource lineitem = CustomCsvTableSource.builder()
+				.path(inPath)
+				.field("l_ts", Types.LONG())
+				.field("l_orderkey", Types.INT())
+				.field("l_partkey", Types.INT())
+				.field("l_suppkey", Types.INT())
+				.field("l_linenumber", Types.INT())
+				.field("l_quantity", Types.INT())
+				.field("l_extendedprice", Types.DOUBLE())
+				.field("l_discount", Types.DOUBLE())
+				.field("l_tax", Types.DOUBLE())
+				.field("l_returnflag", Types.STRING())
+				.field("l_linestatus", Types.STRING())
+				.field("l_shipdate", Types.STRING())
+				.field("l_commitdate", Types.STRING())
+				.field("l_receiptdate", Types.STRING())
+				.field("l_shipinstruct", Types.STRING())
+				.field("l_shipmode", Types.STRING())
+				.field("l_comment", Types.STRING())
+				.build();
+		lineitem.setTableName("lineitem");
+		lineitem.setServingSpeed(servingSpeed);
+		lineitem.setDelay(delay);
+		lineitem.setRowtime(isRowtime);
+		lineitem.setOutOfOrder(days, TimeUnit.DAYS);
+		lineitem.setTimePrefix("l_");
+
+		final CustomCsvTableSource supplier = CustomCsvTableSource.builder()
+				.path(inPath)
+				.field("s_ts", Types.LONG())
+				.field("s_suppkey", Types.INT())
+				.field("s_name", Types.STRING())
+				.field("s_address", Types.STRING())
+				.field("s_nationkey", Types.INT())
+				.field("s_phone", Types.STRING())
+				.field("s_acctbal", Types.DOUBLE())
+				.field("s_comment", Types.STRING())
+				.build();
+		supplier.setTableName("supplier");
+		supplier.setServingSpeed(servingSpeed);
+		supplier.setDelay(0);
+		supplier.setRowtime(isRowtime);
+		supplier.setOutOfOrder(days, TimeUnit.DAYS);
+		supplier.setTimePrefix("s_");
+
+		final CustomCsvTableSource nation = CustomCsvTableSource.builder()
+				.path(inPath)
+				.field("n_ts", Types.LONG())
+				.field("n_nationkey", Types.INT())
+				.field("n_name", Types.STRING())
+				.field("n_regionkey", Types.INT())
+				.field("n_comment", Types.STRING())
+				.build();
+		nation.setTableName("nation");
+		nation.setServingSpeed(servingSpeed);
+		nation.setDelay(0);
+		nation.setRowtime(isRowtime);
+		nation.setOutOfOrder(days, TimeUnit.DAYS);
+		nation.setTimePrefix("n_");
+
+		final CustomCsvTableSource region = CustomCsvTableSource.builder()
+				.path(inPath)
+				.field("r_ts", Types.LONG())
+				.field("r_regionkey", Types.INT())
+				.field("r_name", Types.STRING())
+				.field("r_comment", Types.STRING())
+				.build();
+		region.setTableName("region");
+		region.setServingSpeed(servingSpeed);
+		region.setDelay(0);
+		region.setRowtime(isRowtime);
+		region.setOutOfOrder(days, TimeUnit.DAYS);
+		region.setTimePrefix("r_");
+
+		if (useStatistics && !skewed) {
+			{
+				// SF * 150,000 rows in CUSTOMER table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 150_000.0);
+				columnStats.put("c_custkey", new ColumnStats(rowCount, null, null, null, null, null, false));
+				// fixed cardinality: does not scale with SF
+				columnStats.put("c_nationkey", new ColumnStats(25L, null, null, null, null, null, false));
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("customer", customer, stats);
+			}
+
+			{
+				// for each row in the CUSTOMER table, ten rows in the ORDERS table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 1_500_000.0);
+				// orders are not present for all customers; every third customer is not assigned any order
+				final long ndv_custkey = (long) (dataFactor * 150_000.0 * (2.0/3.0));
+				columnStats.put("o_custkey", new ColumnStats(ndv_custkey, null, null, null, null, null, false));
+				columnStats.put("o_orderkey", new ColumnStats(rowCount, null, null, null, null, null, false));
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("orders", orders, stats);
+			}
+
+			{
+				// cardinality of the LINEITEM table is not a strict multiple of SF since
+				// the number of lineitems in an order is chosen at random with an average of four
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 6_000_000.0);
+				// orders are chosen at random with an average of four
+				final long ndv_orderkey = (long) (dataFactor * 1_500_000.0);
+				columnStats.put("l_orderkey", new ColumnStats(ndv_orderkey, null, null, null, null, null, false));
+				// SF * 10,000 rows in the SUPPLIER table
+				final long ndv_suppkey = (long) (dataFactor * 10_000.0);
+				columnStats.put("l_suppkey", new ColumnStats(ndv_suppkey, null, null, null, null, null, false));
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("lineitem", lineitem, stats);
+			}
+
+			{
+				// SF * 10,000 rows in the SUPPLIER table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 10_000.0);
+				columnStats.put("s_suppkey", new ColumnStats(rowCount, null, null, null, null, null, false));
+				// 25 rows in the NATION table
+				columnStats.put("s_nationkey", new ColumnStats(25L, null, null, null, null, null, false));
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("supplier", supplier, stats);
+			}
+
+			{
+				// 25 rows in the NATION table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				columnStats.put("n_nationkey", new ColumnStats(25L, null, null, null, null, null, false));
+				// 5 rows in the REGION table
+				columnStats.put("n_regionkey", new ColumnStats(5L, null, null, null, null, null, false));
+				TableStats stats = new TableStats(25L, columnStats);
+				tenv.registerTableSource("nation", nation, stats);
+			}
+
+			{
+				// 5 rows in the REGION table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				columnStats.put("r_regionkey", new ColumnStats(5L, null, null, null, null, null, false));
+				TableStats stats = new TableStats(5L, columnStats);
+				tenv.registerTableSource("region", region, stats);
+			}
+		} else if (useStatistics) { // skewed
+			{
+				// SF * 150,000 rows in CUSTOMER table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 150_000.0);
+				columnStats.put("c_custkey", new ColumnStats(rowCount, null, null, null, null, null, false));
+				// fixed cardinality: does not scale with SF
+				// despite skew, with large SF all values should be present, but we remove 1/3
+				columnStats.put("c_nationkey", new ColumnStats((long) (25.0 * (2.0/3.0)), null, null, null, null, null, true)); // skewed
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("customer", customer, stats);
+			}
+
+			{
+				// for each row in the CUSTOMER table, ten rows in the ORDERS table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 1_500_000.0);
+				// orders are not present for all customers; every third customer is not assigned any order
+				// despite skew, with large SF all values should be present, but we remove 1/3
+				final long ndv_custkey = (long) (dataFactor * 150_000.0 * (2.0/3.0) * (2.0/3.0));
+				columnStats.put("o_custkey", new ColumnStats(ndv_custkey, null, null, null, null, null, true)); // skewed
+				columnStats.put("o_orderkey", new ColumnStats(rowCount, null, null, null, null, null, false));
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("orders", orders, stats);
+			}
+
+			{
+				// cardinality of the LINEITEM table is not a strict multiple of SF since
+				// the number of lineitems in an order is chosen at random with an average of four
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 6_000_000.0);
+				// orders are chosen at random with an average of four
+				// despite skew, with large SF all values should be present, but we remove 1/3
+				final long ndv_orderkey = (long) (dataFactor * 1_500_000.0 * (2.0/3.0));
+				columnStats.put("l_orderkey", new ColumnStats(ndv_orderkey, null, null, null, null, null, true)); // skewed
+				// SF * 10,000 rows in the SUPPLIER table
+				final long ndv_suppkey = (long) (dataFactor * 10_000.0);
+				columnStats.put("l_suppkey", new ColumnStats(ndv_suppkey, null, null, null, null, null, false));
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("lineitem", lineitem, stats);
+			}
+
+			{
+				// SF * 10,000 rows in the SUPPLIER table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				final long rowCount = (long) (dataFactor * 10_000.0);
+				columnStats.put("s_suppkey", new ColumnStats(rowCount, null, null, null, null, null, false));
+				// 25 rows in the NATION table
+				// despite skew, with large SF all values should be present, but we remove 1/3
+				columnStats.put("s_nationkey", new ColumnStats((long) (25.0 * (2.0/3.0)), null, null, null, null, null, true)); // skewed
+				TableStats stats = new TableStats(rowCount, columnStats);
+				tenv.registerTableSource("supplier", supplier, stats);
+			}
+
+			{
+				// 25 rows in the NATION table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				columnStats.put("n_nationkey", new ColumnStats(25L, null, null, null, null, null, false));
+				// 5 rows in the REGION table
+				columnStats.put("n_regionkey", new ColumnStats(5L, null, null, null, null, null, false));
+				TableStats stats = new TableStats(25L, columnStats);
+				tenv.registerTableSource("nation", nation, stats);
+			}
+
+			{
+				// 5 rows in the REGION table
+				Map<String, ColumnStats> columnStats = new HashMap<>();
+				columnStats.put("r_regionkey", new ColumnStats(5L, null, null, null, null, null, false));
+				TableStats stats = new TableStats(5L, columnStats);
+				tenv.registerTableSource("region", region, stats);
+			}
+		} else {
+			tenv.registerTableSource("customer", customer);
+			tenv.registerTableSource("orders", orders);
+			tenv.registerTableSource("lineitem", lineitem);
+			tenv.registerTableSource("supplier", supplier);
+			tenv.registerTableSource("nation", nation);
+			tenv.registerTableSource("region", region);
+		}
+
+		final Table t;
+		t = tenv.sql(
+				"SELECT n_name, r_name, nc_count " +
+				"FROM " +
+				"  (SELECT c_nationkey AS nc_nationkey, COUNT(*) AS nc_count, c_proctime AS nc_proctime FROM customer GROUP BY c_nationkey, c_proctime), " +
+				"  nation, " +
+				"  region " +
+				"WHERE nc_nationkey = n_nationkey AND n_regionkey = r_regionkey AND JOINED_TIME(nc_proctime, n_proctime, r_proctime)");
+
+		final StreamQueryConfig conf;
+		if (trigger == 0) {
+			conf = tenv.queryConfig().withTrigger(Trigger.STREAM_TRIGGER());
+		} else if (trigger == 1) {
+			conf = tenv.queryConfig().withTrigger(Trigger.WATERMARK_TRIGGER());
+		} else if (trigger == 2) {
+			conf = tenv.queryConfig().withTrigger(Trigger.PERIODIC_TRIGGER(), triggerPeriod);
+		} else {
+			throw new IllegalArgumentException("Invalid trigger.");
+		}
+
+		Option<String> del = Option.<String>apply("|");
+		Option<Object> numFile = Option.<Object>apply(null);
+		Option<FileSystem.WriteMode> mode = Option.<FileSystem.WriteMode>apply(FileSystem.WriteMode.OVERWRITE);
+
+		if (ignoreAggregation) {
+			if (realSink) {
+				tenv.toRetractStream(t, Row.class).print();
 			} else {
 				t.writeToSink(new CustomTableSink("many", outPath + "/many_result"));
 			}

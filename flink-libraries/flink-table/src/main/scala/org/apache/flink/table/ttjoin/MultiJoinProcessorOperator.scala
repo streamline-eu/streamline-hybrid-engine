@@ -118,9 +118,13 @@ class MultiJoinProcessorOperator(
 
       val cb: ProcessingTimeCallback = new ProcessingTimeCallback() {
         override def onProcessingTime(timestamp: Long): Unit = {
-          periodicJoin()
 
-          getProcessingTimeService.registerTimer(getProcessingTimeService.getCurrentProcessingTime+triggerPeriod, this)
+          lock.synchronized {
+            periodicJoin()
+          }
+
+          getProcessingTimeService.registerTimer(
+            getProcessingTimeService.getCurrentProcessingTime + triggerPeriod, this)
         }
       }
 
@@ -148,7 +152,16 @@ class MultiJoinProcessorOperator(
   }
 
   override def processElement(element: StreamRecord[JoinRecord]): Unit = {
+    if (trigger == Trigger.PERIODIC_TRIGGER) {
+      lock.synchronized {
+        runProcessElement(element)
+      }
+    } else {
+      runProcessElement(element)
+    }
+  }
 
+  def runProcessElement(element: StreamRecord[JoinRecord]): Unit = {
     val record = element.getValue
     val timestamp = element.getTimestamp
     val tableIdx = record.tableIdx
@@ -206,16 +219,20 @@ class MultiJoinProcessorOperator(
     // set watermark for emitting later!
     else if (trigger == Trigger.PERIODIC_TRIGGER && isEventTime) {
 
-      // pre-process watermark for all cells
-      cellJoin.insertWatermark(mark.getTimestamp)
+      lock.synchronized {
 
-      var cell = startKeyGroup
-      while (cell <= endKeyGroup) {
-        // set key context
-        keyedStateBackend.setCurrentKey(cell, cell)
-        // make progress for tables
-        cellJoin.storeProgress()
-        cell += 1
+        // pre-process watermark for all cells
+        cellJoin.insertWatermark(mark.getTimestamp)
+
+        var cell = startKeyGroup
+        while (cell <= endKeyGroup) {
+          // set key context
+          keyedStateBackend.setCurrentKey(cell, cell)
+          // make progress for tables
+          cellJoin.storeProgress()
+          cell += 1
+        }
+
       }
     }
     // stream trigger
