@@ -88,6 +88,8 @@ class MultiJoinPreprocessorOperator(
     // set the timestamp for rowtime, proctime does not set a timestamp
     if (rowtimeIndex >= 0) {
       streamRecord.setTimestamp(value.row.getField(rowtimeIndex).asInstanceOf[Long])
+    } else {
+      streamRecord.setTimestamp(element.getTimestamp)
     }
 
     // convert row according to mapping

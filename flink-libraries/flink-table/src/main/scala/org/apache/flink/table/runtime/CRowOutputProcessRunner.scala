@@ -61,8 +61,8 @@ class CRowOutputProcessRunner(
       out: Collector[CRow]): Unit = {
 
     // remove timestamp from stream record
-    val tc = out.asInstanceOf[TimestampedCollector[_]]
-    tc.eraseTimestamp()
+//    val tc = out.asInstanceOf[TimestampedCollector[_]]
+//    tc.eraseTimestamp()
 
     cRowWrapper.out = out
     function.processElement(in, ctx.asInstanceOf[ProcessFunction[Any, Row]#Context], cRowWrapper)

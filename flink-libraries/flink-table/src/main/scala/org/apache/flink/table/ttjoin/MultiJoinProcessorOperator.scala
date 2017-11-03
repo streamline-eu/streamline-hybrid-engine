@@ -63,6 +63,9 @@ class MultiJoinProcessorOperator(
   @transient
   var lock: AnyRef = _
 
+  @transient
+  var outRecord: StreamRecord[CRow] = _
+
   override def open(): Unit = {
     keyedStateBackend = getKeyedStateBackend[Int]().asInstanceOf[AbstractKeyedStateBackend[Int]]
     startKeyGroup = keyedStateBackend.getKeyGroupRange.getStartKeyGroup
@@ -85,7 +88,7 @@ class MultiJoinProcessorOperator(
 
     val out = output
     val outRow = new CRow()
-    val outRecord = new StreamRecord[CRow](outRow)
+    outRecord = new StreamRecord[CRow](outRow)
 
     val collector = new Collector[CRow] {
 
@@ -165,6 +168,9 @@ class MultiJoinProcessorOperator(
     val record = element.getValue
     val timestamp = element.getTimestamp
     val tableIdx = record.tableIdx
+
+    // for latency measuring
+    outRecord.setTimestamp(timestamp)
 
     // drop late events
     if (isEventTime && timestamp <= watermark) {

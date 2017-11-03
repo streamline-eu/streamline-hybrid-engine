@@ -134,9 +134,7 @@ public class Queries {
 			String inPath, String outPath, int days, double dataFactor, int seconds, int nodes, int edges,
 			boolean skewed, boolean ignoreAggregation, long servingSpeed, long delay, boolean realSink) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		if (isRowtime) {
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		}
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(parallelism);
 		env.setMaxParallelism(maxParallelism);
 		if (isHeap) {

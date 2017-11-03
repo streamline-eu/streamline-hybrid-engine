@@ -30,7 +30,7 @@ public class QueriesTests {
 	public void testSimpleStreamHeapPara1() throws Exception {
 		Queries.run("simple", 1, 1, false, true, 0, 0L, true, true, true, "",
 			"/Users/twalthr/flink/data/mt/S0001/prepared", "/Users/twalthr/flink/data/mt/S0001/result",
-			10, 0.0001, -1, -1, -1, false, false, 0, 0, true);
+			10, 0.0001, -1, -1, -1, false, false, 0, 0, false);
 		Validation.run("simple",
 			"/Users/twalthr/flink/data/mt/S0001/prepared",
 			"/Users/twalthr/flink/data/mt/S0001/result",

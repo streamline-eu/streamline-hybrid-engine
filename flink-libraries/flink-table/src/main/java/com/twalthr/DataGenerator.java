@@ -1,21 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.twalthr;
 
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +18,7 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 	private final String path;
 	private final long delay;
 	private final long servingSpeed;
+	private final boolean latencyTest;
 
 	private transient int para;
 	private transient int index;
@@ -44,11 +27,12 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 
 	// each partition must be ordered according to timestamp
 	// it might be slightly out of order
-	public DataGenerator(String table, String path, long delay, long servingSpeed) {
+	public DataGenerator(String table, String path, long delay, long servingSpeed, boolean latencyTest) {
 		this.path = path;
 		this.delay = delay;
 		this.servingSpeed = servingSpeed;
 		this.table = table;
+		this.latencyTest = latencyTest;
 	}
 
 	@Override
@@ -60,7 +44,8 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 	@Override
 	public void run(SourceContext<Row> ctx) throws Exception {
 		final Parser parser = getParser(table);
-		fis = new FileInputStream(path + "/" + table + "/para" + para + "/" + (index + 1));
+		final String paddedIndex = String.format("%02d", index);
+		fis = new FileInputStream(path + "/" + table + "/para" + para + "/" + paddedIndex);
 		reader = new BufferedReader(new InputStreamReader(fis), 1024 * 1024);
 
 		if (delay > 0) {
@@ -81,7 +66,11 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 				Thread.sleep(sleep);
 			}
 
-			ctx.collect(record);
+			if (latencyTest) {
+				ctx.collectWithTimestamp(record, System.currentTimeMillis());
+			} else {
+				ctx.collect(record);
+			}
 		}
 	}
 
@@ -101,7 +90,7 @@ public class DataGenerator extends RichParallelSourceFunction<Row> {
 
 	// --------------------------------------------------------------------------------------------
 
-	public Parser getParser(String table) {
+	private Parser getParser(String table) {
 		switch (table) {
 
 			case "customer":
