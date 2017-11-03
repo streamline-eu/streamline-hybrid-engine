@@ -37,8 +37,7 @@ public class PreparationSimpleAndMany {
 		if (args.length == 0) {
 			inPath = "/Volumes/TTDISK/tpchskew/raw/32GB";
 			days = 5;
-//			outPath = "/Users/twalthr/flink/data/clusterdata/tpch/8GB/prepared";
-			outPath = "/Volumes/TTDISK/tpchskew/prepared/32GB";
+			outPath = "/Users/twalthr/flink/data/mt/S0001/prepared";
 		} else {
 			inPath = args[0];
 			days = Integer.parseInt(args[1]);
