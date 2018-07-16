@@ -61,7 +61,32 @@ val counts = text.flatMap { w => w.split("\\s") }
 counts.writeAsCsv(outputPath)
 ```
 
+### Sideinput Example
 
+**IMPORTANT: Sideinput is not yet fault-tolerant and it does not spill to disk.**
+
+**When Building the Flink-Streamline from source use the following command:**
+```
+mvn clean install -DskipTests -Drat.skip=true -Dcheckstyle.skip -Denforcer.skip -Dscalastyle.skip -Dhadoop.version=2.7.1
+```
+
+
+```java
+DataStream<String> source = env.fromElements("Hello", "There", "What", "up");
+DataStream<String> sideSource = env.fromElements("A", "B", "C");
+
+SideInput<Integer> sideInput = env.newBroadcastedSideInput(sideSource);
+
+source.map(new RichMapFunction<>() {
+  public String map(String value) throws Exception {
+    Iterable<Integer> side = getRuntimeContext().getSideInput(sideInput);
+    LOG.info("SEEING MAIN INPUT: " + value + " with " + side);
+    return value;
+  }
+}).withSideInput(sideInput);
+```
+
+More examples can be found [here](flink-streaming-java/src/test/java/org/apache/flink/streaming/api/DataStreamTest.java)
 
 ## Building Apache Flink from Source
 
