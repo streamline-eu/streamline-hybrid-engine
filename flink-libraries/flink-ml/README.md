@@ -7,18 +7,19 @@ Theses implementations allow to scale to data sizes which vastly exceed the memo
 Flink-ML currently comprises the following algorithms:
 
 * Classification
-** Soft-margin SVM
-** Passice-aggressive classifier
+  * Soft-margin SVM
+  * Passice-aggressive classifier (with parameter server)
 * Regression
-** Multiple linear regression
+  * Multiple linear regression
 * Recommendation
-** Alternating least squares (ALS)
-** Matrix Factorization
-** Factorization Machine
-* Sketch
-** Tug of War
-** Bloomfilter
-** Minhash
+  * Alternating least squares (ALS)
+  * Implicit alternating least squares (iALS)
+  * Matrix Factorization (with parameter server)
+  * Factorization Machine (with parameter server)
+* Sketch (with parameter server)
+  * Tug of War
+  * Bloomfilter
+  * Minhash
 
 Since most of the work in data analytics is related to post- and pre-processing of data where the performance is not crucial, Flink wants to offer a simple abstraction to do that.
 Linear algebra, as common ground of many ML algorithms, represents such a high-level abstraction.
@@ -28,10 +29,10 @@ Flink-ML also provides a parameter server architecture, which can serve as a fra
 
 Parameter server is an abstraction for model-parallel machine learning (see the work of [Li et al.](https://doi.org/10.1145/2640087.2644155)).
 Our implementation could be used with the Streaming API:
-it can take a `DataStream` of data-points as input, and produce a `DataStream` of model updates. This way, we can implement both online and offline ML algorithms. Currently only asynchronous training is supported.
+it can take a `DataStream` of data-points as input, and produce a `DataStream` of model updates. This way, we can implement both online and offline ML algorithms. Currently only asynchronous training is supported. Two examples (classification with the passive-aggressive algorithm and recommendation with matrix factorization) are expleined in details in this [Flink Forward talk](https://www.youtube.com/watch?v=4JEciJxJ5to).
 
 
-# API
+### API
 
 We can use the Parameter Server in the following way:
 
@@ -70,7 +71,7 @@ def transform[T, P, WorkerOut](
 
 Besides the `trainingData` stream and the `workerLogic`, we need to define how the Parameter Server should initialize a parameter based on the parameter id (`paramInit`), and how to update a parameter based on a received push (`paramUpdate`). We must also define how many parallel instances of workers and parameter servers we should use (`workerParallelism` and `psParallelism`), and the `iterationWaitTime` (see [Limitations](README.md#limitations)).
 
-# Limitations
+### Limitations
 
 We implement the two-way communication of workers and the parameter server with Flink Streaming [iterations](https://ci.apache.org/projects/flink/flink-docs-release-1.3/dev/datastream_api.html#iterations), which is not yet production-ready. The main issues are
 - **Sometimes deadlocks due to cyclic backpressure.** A workaround could be to limiting the amount of unanswered pulls per worker (e.g. by using [WorkerLogic.addPullLimiter](src/main/scala/hu/sztaki/ilab/ps/WorkerLogic.scala#L169)), or manually limiting the input rate of data on the input stream. In any case, deadlock would still be possible.
