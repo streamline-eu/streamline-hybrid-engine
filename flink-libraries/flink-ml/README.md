@@ -8,14 +8,14 @@ Flink-ML currently comprises the following algorithms:
 
 * Classification
   * Soft-margin SVM
-  * Passice-aggressive classifier
+  * Passice-aggressive classifier (with parameter server)
 * Regression
   * Multiple linear regression
 * Recommendation
   * Alternating least squares (ALS)
-  * Matrix Factorization
-  * Factorization Machine
-* Sketch
+  * Matrix Factorization (with parameter server)
+  * Factorization Machine (with parameter server)
+* Sketch (with parameter server)
   * Tug of War
   * Bloomfilter
   * Minhash
@@ -28,7 +28,7 @@ Flink-ML also provides a parameter server architecture, which can serve as a fra
 
 Parameter server is an abstraction for model-parallel machine learning (see the work of [Li et al.](https://doi.org/10.1145/2640087.2644155)).
 Our implementation could be used with the Streaming API:
-it can take a `DataStream` of data-points as input, and produce a `DataStream` of model updates. This way, we can implement both online and offline ML algorithms. Currently only asynchronous training is supported.
+it can take a `DataStream` of data-points as input, and produce a `DataStream` of model updates. This way, we can implement both online and offline ML algorithms. Currently only asynchronous training is supported. Two examples (classification with the passive-aggressive algorithm and recommendation with matrix factorization) are expleined in details in this [Flink Forward talk](https://www.youtube.com/watch?v=4JEciJxJ5to).
 
 
 ### API
