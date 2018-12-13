@@ -1,4 +1,11 @@
-# Apache Flink
+# Streamline Platform
+Streamline platform is a fork of the Apache Flink project which enables efficient combined data analysis of the data-at-rest (batch data) and data-in-motion (streaming data).
+Specifically, the Streamline platform contains the following additional features:
+- [Side input](https://github.com/streamline-eu/streamline-platform#sideinput-example)
+- [ML Parameter Server](https://github.com/streamline-eu/streamline-platform/blob/master/flink-libraries/flink-ml/README.md)
+- [Robust Join: an efficient multi-way join operator](https://github.com/streamline-eu/streamline-platform/tree/robust-join)
+
+## Apache Flink
 
 Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities.
 
