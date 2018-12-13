@@ -3,7 +3,7 @@ Streamline platform is a fork of the Apache Flink project which enables efficien
 Specifically, the Streamline platform contains the following additional features:
 - [Side input](https://github.com/streamline-eu/streamline-platform#sideinput-example)
 - [ML Parameter Server](https://github.com/streamline-eu/streamline-platform/blob/master/flink-libraries/flink-ml/README.md)
-- [Robust Joing: an efficient multi-way join operator](https://github.com/streamline-eu/streamline-platform/tree/robust-join)
+- [Robust Join: an efficient multi-way join operator](https://github.com/streamline-eu/streamline-platform/tree/robust-join)
 
 ## Apache Flink
 
