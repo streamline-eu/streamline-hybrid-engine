@@ -13,6 +13,7 @@ Flink-ML currently comprises the following algorithms:
   * Multiple linear regression
 * Recommendation
   * Alternating least squares (ALS)
+  * Implicit alternating least squares (iALS)
   * Matrix Factorization (with parameter server)
   * Factorization Machine (with parameter server)
 * Sketch (with parameter server)
